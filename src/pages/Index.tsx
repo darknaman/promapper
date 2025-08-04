@@ -23,8 +23,10 @@ const Index = () => {
   const handleProductsUpload = (data: any[], fileName: string) => {
     try {
       const processedProducts: Product[] = data.map((row, index) => ({
-        id: `product-${index}`,
+        id: row.id || row.ID || `product-${index}`,
         title: row.title || row.Title || '',
+        brand: row.brand || row.Brand || '',
+        url: row.url || row.URL || '',
         category: undefined,
         subcategory: undefined,
         bigC: undefined,
@@ -88,7 +90,10 @@ const Index = () => {
     if (products.length === 0) return;
 
     const csvHeaders = [
+      'Product ID',
       'Product Title',
+      'Brand',
+      'URL',
       'Category',
       'Subcategory',
       'Big C',
@@ -98,7 +103,10 @@ const Index = () => {
     ];
 
     const csvRows = products.map(product => [
+      product.id,
       product.title,
+      product.brand || '',
+      product.url || '',
       product.category || '',
       product.subcategory || '',
       product.bigC || '',
@@ -183,12 +191,12 @@ const Index = () => {
 
     // Generate sample products
     const sampleProducts: Product[] = [
-      { id: 'p1', title: 'iPhone 15 Pro Max', category: undefined, subcategory: undefined, bigC: undefined, smallC: undefined, segment: undefined, subSegment: undefined },
-      { id: 'p2', title: 'Samsung Galaxy S24', category: undefined, subcategory: undefined, bigC: undefined, smallC: undefined, segment: undefined, subSegment: undefined },
-      { id: 'p3', title: 'MacBook Air M3', category: undefined, subcategory: undefined, bigC: undefined, smallC: undefined, segment: undefined, subSegment: undefined },
-      { id: 'p4', title: 'ASUS ROG Gaming Laptop', category: undefined, subcategory: undefined, bigC: undefined, smallC: undefined, segment: undefined, subSegment: undefined },
-      { id: 'p5', title: 'Nike Air Max Running Shoes', category: undefined, subcategory: undefined, bigC: undefined, smallC: undefined, segment: undefined, subSegment: undefined },
-      { id: 'p6', title: 'Adidas Ultraboost Sneakers', category: undefined, subcategory: undefined, bigC: undefined, smallC: undefined, segment: undefined, subSegment: undefined },
+      { id: 'P001', title: 'iPhone 15 Pro Max', brand: 'Apple', url: 'https://apple.com/iphone-15-pro', category: undefined, subcategory: undefined, bigC: undefined, smallC: undefined, segment: undefined, subSegment: undefined },
+      { id: 'P002', title: 'Samsung Galaxy S24', brand: 'Samsung', url: 'https://samsung.com/galaxy-s24', category: undefined, subcategory: undefined, bigC: undefined, smallC: undefined, segment: undefined, subSegment: undefined },
+      { id: 'P003', title: 'MacBook Air M3', brand: 'Apple', url: 'https://apple.com/macbook-air', category: undefined, subcategory: undefined, bigC: undefined, smallC: undefined, segment: undefined, subSegment: undefined },
+      { id: 'P004', title: 'ASUS ROG Gaming Laptop', brand: 'ASUS', url: 'https://asus.com/laptops/gaming', category: undefined, subcategory: undefined, bigC: undefined, smallC: undefined, segment: undefined, subSegment: undefined },
+      { id: 'P005', title: 'Nike Air Max Running Shoes', brand: 'Nike', url: 'https://nike.com/air-max', category: undefined, subcategory: undefined, bigC: undefined, smallC: undefined, segment: undefined, subSegment: undefined },
+      { id: 'P006', title: 'Adidas Ultraboost Sneakers', brand: 'Adidas', url: 'https://adidas.com/ultraboost', category: undefined, subcategory: undefined, bigC: undefined, smallC: undefined, segment: undefined, subSegment: undefined },
     ];
 
     setHierarchyRules(sampleHierarchy);
@@ -260,8 +268,8 @@ const Index = () => {
         <div className="grid md:grid-cols-2 gap-6 mb-8">
           <FileUpload
             title="Upload Products"
-            description="CSV file containing product titles to be classified"
-            expectedHeaders={['title']}
+            description="CSV file containing product data (ID, title, brand, URL) to be classified"
+            expectedHeaders={['id', 'title']}
             onFileUpload={handleProductsUpload}
             uploadedFileName={productsFileName}
           />

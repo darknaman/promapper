@@ -1,6 +1,8 @@
 export interface Product {
   id: string;
   title: string;
+  brand?: string;
+  url?: string;
   category?: string;
   subcategory?: string;
   bigC?: string;

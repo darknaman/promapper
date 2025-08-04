@@ -152,8 +152,17 @@ const MappingTable: React.FC<MappingTableProps> = ({
           <table className="w-full">
             <thead className="bg-data-grid-header border-b">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-foreground uppercase tracking-wider">
+                <th className="px-3 py-3 text-left text-xs font-medium text-foreground uppercase tracking-wider min-w-[120px]">
+                  Product ID
+                </th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-foreground uppercase tracking-wider min-w-[200px]">
                   Product Title
+                </th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-foreground uppercase tracking-wider min-w-[120px]">
+                  Brand
+                </th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-foreground uppercase tracking-wider min-w-[200px]">
+                  URL
                 </th>
                 <th className="px-2 py-3 text-left text-xs font-medium text-foreground uppercase tracking-wider min-w-[150px]">
                   Category

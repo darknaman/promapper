@@ -2,6 +2,7 @@ import React from 'react';
 import { Product, ClassificationLevel, FilterState } from '../types/mapping';
 import { HierarchyHelper } from '../utils/hierarchyHelper';
 import CascadingSelect from './CascadingSelect';
+import { Input } from './ui/input';
 
 interface ProductRowProps {
   product: Product;
@@ -26,6 +27,11 @@ const ProductRow: React.FC<ProductRowProps> = ({
     segment: product.segment,
     subSegment: product.subSegment
   });
+
+  const handleProductFieldChange = (field: keyof Product, value: string) => {
+    const updatedProduct = { ...product, [field]: value };
+    onProductUpdate(product.id, updatedProduct);
+  };
 
   const handleClassificationChange = (level: ClassificationLevel, value: string | null) => {
     let updatedProduct = { ...product, [level]: value || undefined };
@@ -72,10 +78,40 @@ const ProductRow: React.FC<ProductRowProps> = ({
       hover:bg-mapping-row-hover
       ${isComplete ? 'border-l-4 border-l-success' : ''}
     `}>
-      <td className="px-4 py-3 text-sm font-medium text-foreground max-w-xs">
-        <div className="truncate" title={product.title}>
-          {product.title}
-        </div>
+      <td className="px-3 py-3">
+        <Input
+          value={product.id}
+          onChange={(e) => handleProductFieldChange('id', e.target.value)}
+          className="min-w-[120px] h-8 text-sm"
+          placeholder="Product ID"
+        />
+      </td>
+      
+      <td className="px-3 py-3">
+        <Input
+          value={product.title}
+          onChange={(e) => handleProductFieldChange('title', e.target.value)}
+          className="min-w-[200px] h-8 text-sm"
+          placeholder="Product Title"
+        />
+      </td>
+      
+      <td className="px-3 py-3">
+        <Input
+          value={product.brand || ''}
+          onChange={(e) => handleProductFieldChange('brand', e.target.value)}
+          className="min-w-[120px] h-8 text-sm"
+          placeholder="Brand"
+        />
+      </td>
+      
+      <td className="px-3 py-3">
+        <Input
+          value={product.url || ''}
+          onChange={(e) => handleProductFieldChange('url', e.target.value)}
+          className="min-w-[200px] h-8 text-sm"
+          placeholder="Product URL"
+        />
       </td>
       
       {classifications.map((level) => (
