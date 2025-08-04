@@ -7,7 +7,7 @@ import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { useToast } from '../hooks/use-toast';
-import { Shuffle, Database, Download, RotateCcw } from 'lucide-react';
+import { Shuffle, Database, Download, RotateCcw, FileDown } from 'lucide-react';
 
 const Index = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -133,6 +133,63 @@ const Index = () => {
     toast({
       title: "Export successful",
       description: "Your mapped products have been downloaded.",
+    });
+  };
+
+  const downloadProductTemplate = () => {
+    const templateHeaders = ['id', 'title', 'brand', 'url'];
+    const templateData = [
+      ['P001', 'Sample Product 1', 'Sample Brand', 'https://example.com/product1'],
+      ['P002', 'Sample Product 2', 'Another Brand', 'https://example.com/product2']
+    ];
+
+    const csvContent = [
+      templateHeaders.join(','),
+      ...templateData.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'product-template.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "Template downloaded",
+      description: "Product template CSV has been downloaded.",
+    });
+  };
+
+  const downloadHierarchyTemplate = () => {
+    const templateHeaders = ['category', 'subcategory', 'bigC', 'smallC', 'segment', 'subSegment'];
+    const templateData = [
+      ['Electronics', 'Mobile Phones', 'Smartphones', 'Premium', 'Apple', 'Flagship'],
+      ['Electronics', 'Computers', 'Laptops', 'Gaming', 'Gaming', 'High-end'],
+      ['Clothing', 'Footwear', 'Sneakers', 'Athletic', 'Nike', 'Running']
+    ];
+
+    const csvContent = [
+      templateHeaders.join(','),
+      ...templateData.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'hierarchy-template.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "Template downloaded",
+      description: "Hierarchy template CSV has been downloaded.",
     });
   };
 
@@ -266,21 +323,41 @@ const Index = () => {
 
         {/* Upload Section */}
         <div className="grid md:grid-cols-2 gap-6 mb-8">
-          <FileUpload
-            title="Upload Products"
-            description="CSV file containing product data (ID, title, brand, URL) to be classified"
-            expectedHeaders={['id', 'title']}
-            onFileUpload={handleProductsUpload}
-            uploadedFileName={productsFileName}
-          />
+          <div className="space-y-4">
+            <FileUpload
+              title="Upload Products"
+              description="CSV file containing product data (ID, title, brand, URL) to be classified"
+              expectedHeaders={['id', 'title']}
+              onFileUpload={handleProductsUpload}
+              uploadedFileName={productsFileName}
+            />
+            <Button
+              variant="outline"
+              onClick={downloadProductTemplate}
+              className="w-full hover:bg-accent"
+            >
+              <FileDown className="h-4 w-4 mr-2" />
+              Download Product Template
+            </Button>
+          </div>
           
-          <FileUpload
-            title="Upload Hierarchy Rules"
-            description="CSV file defining valid category relationships and combinations"
-            expectedHeaders={['category', 'subcategory', 'bigC', 'smallC', 'segment', 'subSegment']}
-            onFileUpload={handleHierarchyUpload}
-            uploadedFileName={hierarchyFileName}
-          />
+          <div className="space-y-4">
+            <FileUpload
+              title="Upload Hierarchy Rules"
+              description="CSV file defining valid category relationships and combinations"
+              expectedHeaders={['category', 'subcategory', 'bigC', 'smallC', 'segment', 'subSegment']}
+              onFileUpload={handleHierarchyUpload}
+              uploadedFileName={hierarchyFileName}
+            />
+            <Button
+              variant="outline"
+              onClick={downloadHierarchyTemplate}
+              className="w-full hover:bg-accent"
+            >
+              <FileDown className="h-4 w-4 mr-2" />
+              Download Hierarchy Template
+            </Button>
+          </div>
         </div>
 
         {/* Status Cards */}
