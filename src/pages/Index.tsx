@@ -80,15 +80,15 @@ const Index = () => {
         // Process chunk synchronously but yield control
         const processedChunk = chunk.map((row, index) => ({
           id: row.id || row.ID || `product-${i + index}`,
-          title: row.title || row.Title || '',
+          title: row.title || row.Title || row.name || row.Name || '',
           brand: row.brand || row.Brand || '',
           url: row.url || row.URL || '',
-          category: undefined,
-          subcategory: undefined,
-          bigC: undefined,
-          smallC: undefined,
-          segment: undefined,
-          subSegment: undefined
+          category: row.category,
+          subcategory: row.subcategory,
+          bigC: row.bigC,
+          smallC: row.smallC,
+          segment: row.segment,
+          subSegment: row.subSegment
         }));
         
         processedProducts.push(...processedChunk);
@@ -378,6 +378,7 @@ const Index = () => {
       name: product.title,
       sku: product.id, // Use ID as SKU for now
       brand: product.brand || '',
+      url: product.url || '',
       hierarchy: {
         level1: product.category,
         level2: product.subcategory,
@@ -427,6 +428,7 @@ const Index = () => {
         id: row.id,
         title: row.name,
         brand: row.brand,
+        url: row.url || originalProduct?.url || '',
         category: row.hierarchy?.level1,
         subcategory: row.hierarchy?.level2,
         bigC: row.hierarchy?.level3,

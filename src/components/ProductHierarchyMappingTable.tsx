@@ -6,7 +6,7 @@ import { Progress } from './ui/progress';
 import { Badge } from './ui/badge';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { RotateCcw, Check, ChevronsUpDown, Eye, EyeOff } from 'lucide-react';
+import { RotateCcw, Check, ChevronsUpDown, Eye, EyeOff, Download, Search, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { RowData, ProductHierarchyMappingTableProps } from '../types/productTable';
 import BatchEditForm from './BatchEditForm';
@@ -155,6 +155,7 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [showIncomplete, setShowIncomplete] = useState(false);
   const [isBatchEditOpen, setIsBatchEditOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Create hierarchy helper for batch edit
   const hierarchyHelper = useMemo(() => {
@@ -190,7 +191,8 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
     { key: 'checkbox', label: '', width: 50 },
     { key: 'name', label: 'Product Name', width: 200 },
     { key: 'sku', label: 'SKU/ID', width: 120 },
-    { key: 'brand', label: 'Brand', width: 150 },
+    { key: 'brand', label: 'Brand', width: 120 },
+    { key: 'url', label: 'URL', width: 150 },
     { key: 'level1', label: 'Category', width: 140 },
     { key: 'level2', label: 'Subcategory', width: 140 },
     { key: 'level3', label: 'Big C', width: 120 },
@@ -317,11 +319,78 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
     if (field.startsWith('hierarchy.')) {
       const hierarchyField = field.split('.')[1];
       updatedRow.hierarchy = { ...updatedRow.hierarchy, [hierarchyField]: value };
+      
+      // Auto-complete functionality: fill remaining hierarchy levels
+      if (value && hierarchyHelper) {
+        const currentSelections = {
+          category: updatedRow.hierarchy?.level1,
+          subcategory: updatedRow.hierarchy?.level2,
+          bigC: updatedRow.hierarchy?.level3,
+          smallC: updatedRow.hierarchy?.level4,
+          segment: updatedRow.hierarchy?.level5,
+          subSegment: updatedRow.hierarchy?.level6
+        };
+        const autoCompleted = hierarchyHelper.autoCompleteSelections(currentSelections);
+        updatedRow.hierarchy = {
+          level1: autoCompleted.category,
+          level2: autoCompleted.subcategory,
+          level3: autoCompleted.bigC,
+          level4: autoCompleted.smallC,
+          level5: autoCompleted.segment,
+          level6: autoCompleted.subSegment
+        };
+      }
     } else {
       updatedRow[field as keyof RowData] = value;
     }
     handleRowUpdate(updatedRow);
-  }, [rows, handleRowUpdate]);
+  }, [rows, handleRowUpdate, hierarchyHelper]);
+
+  // Search functionality
+  const searchFilteredRows = useMemo(() => {
+    if (!searchQuery.trim()) return filteredRows;
+    return filteredRows.filter(row => 
+      row.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      row.sku?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      row.brand?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [filteredRows, searchQuery]);
+
+  // CSV Export functionality
+  const exportToCSV = useCallback(() => {
+    const headers = [
+      'ID', 'Product Name', 'SKU', 'Brand', 'URL',
+      'Category', 'Subcategory', 'Big C', 'Small C', 'Segment', 'Sub-segment'
+    ];
+    
+    const csvData = rows.map(row => [
+      row.id,
+      row.name || '',
+      row.sku || '',
+      row.brand || '',
+      row.url || '',
+      row.hierarchy?.level1 || '',
+      row.hierarchy?.level2 || '',
+      row.hierarchy?.level3 || '',
+      row.hierarchy?.level4 || '',
+      row.hierarchy?.level5 || '',
+      row.hierarchy?.level6 || ''
+    ]);
+
+    const csvContent = [headers, ...csvData]
+      .map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `product-hierarchy-mapping-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [rows]);
 
   return (
     <div className="mapping-table-container">
@@ -344,6 +413,16 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
             <Button
               variant="outline"
               size="sm"
+              onClick={exportToCSV}
+              className="flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Export CSV
+            </Button>
+            
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setShowIncomplete(!showIncomplete)}
               className="flex items-center gap-2"
             >
@@ -361,6 +440,34 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
               </Button>
             )}
           </div>
+        </div>
+        
+        {/* Search Bar */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search products by name, SKU, or brand..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 pr-10"
+            />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+                onClick={() => setSearchQuery('')}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+          {searchQuery && (
+            <Badge variant="secondary">
+              {searchFilteredRows.length} of {filteredRows.length} rows
+            </Badge>
+          )}
         </div>
       </div>
 
@@ -395,7 +502,7 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
             </tr>
           </thead>
           <tbody>
-            {filteredRows.map((row) => (
+            {searchFilteredRows.map((row) => (
               <tr key={row.id} className="border-b border-border hover:bg-muted/50">
                 {columns.map((column) => (
                   <td
@@ -418,7 +525,7 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
                       />
                     )}
 
-                    {(column.key === 'name' || column.key === 'sku' || column.key === 'brand') && (
+                    {(column.key === 'name' || column.key === 'sku' || column.key === 'brand' || column.key === 'url') && (
                       <EditableCell
                         value={row[column.key as keyof RowData] as string || ''}
                         onChange={(value) => updateField(row.id, column.key, value)}

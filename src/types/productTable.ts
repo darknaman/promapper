@@ -3,6 +3,7 @@ export interface RowData {
   name: string;
   sku: string;
   brand: string;
+  url?: string;
   hierarchy?: {
     level1?: string;
     level2?: string;
