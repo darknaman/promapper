@@ -59,11 +59,31 @@ const OptimizedProductRow: React.FC<OptimizedProductRowProps> = memo(({
     classifications.every(level => product[level]), [classifications, product]);
 
   return (
-    <div className={`grid grid-cols-10 gap-1 p-1 border-b ${isComplete ? 'bg-green-50' : ''}`}>
-      <div className="text-xs truncate p-1" title={product.id}>{product.id}</div>
-      <div className="col-span-2 text-xs truncate p-1" title={product.title}>{product.title}</div>
-      <div className="text-xs truncate p-1" title={product.brand || ''}>{product.brand}</div>
-      <div className="col-span-2 text-xs truncate p-1" title={product.url || ''}>{product.url}</div>
+    <div className={`grid grid-cols-12 gap-2 p-1 border-b ${isComplete ? 'bg-green-50' : ''}`}>
+      <input 
+        className="text-xs p-1 border rounded bg-background text-foreground" 
+        value={product.id} 
+        onChange={(e) => onProductUpdate(product.id, { ...product, id: e.target.value })}
+        title={product.id}
+      />
+      <input 
+        className="col-span-2 text-xs p-1 border rounded bg-background text-foreground" 
+        value={product.title} 
+        onChange={(e) => onProductUpdate(product.id, { ...product, title: e.target.value })}
+        title={product.title}
+      />
+      <input 
+        className="text-xs p-1 border rounded bg-background text-foreground" 
+        value={product.brand || ''} 
+        onChange={(e) => onProductUpdate(product.id, { ...product, brand: e.target.value })}
+        title={product.brand || ''}
+      />
+      <input 
+        className="col-span-2 text-xs p-1 border rounded bg-background text-foreground" 
+        value={product.url || ''} 
+        onChange={(e) => onProductUpdate(product.id, { ...product, url: e.target.value })}
+        title={product.url || ''}
+      />
       
       {classifications.map((level) => (
         <div key={level} className="min-w-0">

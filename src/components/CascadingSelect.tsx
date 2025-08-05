@@ -100,9 +100,8 @@ const CascadingSelect: React.FC<CascadingSelectProps> = ({
         menuPosition="fixed"
         noOptionsMessage={() => "No options available"}
         components={{
-          ClearIndicator: ({ innerProps, clearValue }) => (
+          ClearIndicator: (props) => (
             <div
-              {...innerProps}
               style={{
                 color: 'hsl(var(--muted-foreground))',
                 cursor: 'pointer',
@@ -110,9 +109,9 @@ const CascadingSelect: React.FC<CascadingSelectProps> = ({
                 display: 'flex',
                 alignItems: 'center'
               }}
-              onClick={(e) => {
+              onMouseDown={(e) => {
+                e.preventDefault();
                 e.stopPropagation();
-                clearValue();
                 onChange(null);
               }}
             >

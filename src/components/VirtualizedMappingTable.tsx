@@ -173,11 +173,23 @@ const VirtualizedMappingTable: React.FC<VirtualizedMappingTableProps> = ({
       {/* Virtualized table */}
       <Card className="overflow-hidden">
         <div className="border-b bg-muted/30 p-4">
-          <div className="grid grid-cols-10 gap-4 text-sm font-medium text-foreground">
-            <div>ID</div>
-            <div className="col-span-2">Title</div>
-            <div>Brand</div>
-            <div className="col-span-2">URL</div>
+          <div className="grid grid-cols-12 gap-2 text-sm font-medium text-foreground">
+            <div className="flex items-center gap-2">
+              <span>ID</span>
+              <input type="checkbox" defaultChecked className="w-3 h-3" title="Enable editing" />
+            </div>
+            <div className="col-span-2 flex items-center gap-2">
+              <span>Title</span>
+              <input type="checkbox" defaultChecked className="w-3 h-3" title="Enable editing" />
+            </div>
+            <div className="flex items-center gap-2">
+              <span>Brand</span>
+              <input type="checkbox" defaultChecked className="w-3 h-3" title="Enable editing" />
+            </div>
+            <div className="col-span-2 flex items-center gap-2">
+              <span>URL</span>
+              <input type="checkbox" defaultChecked className="w-3 h-3" title="Enable editing" />
+            </div>
             <div>Category</div>
             <div>Subcategory</div>
             <div>Big C</div>
