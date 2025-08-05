@@ -9,12 +9,26 @@ interface OptimizedProductRowProps {
   product: Product;
   hierarchyHelper: OptimizedHierarchyHelper;
   onProductUpdate: (productId: string, updatedProduct: Product) => void;
+  columnWidths: {
+    id: number;
+    title: number;
+    brand: number;
+    url: number;
+    category: number;
+    subcategory: number;
+    bigC: number;
+    smallC: number;
+    segment: number;
+    subSegment: number;
+    clear: number;
+  };
 }
 
 const OptimizedProductRow: React.FC<OptimizedProductRowProps> = memo(({
   product,
   hierarchyHelper,
-  onProductUpdate
+  onProductUpdate,
+  columnWidths
 }) => {
   const classifications: ClassificationLevel[] = useMemo(() => 
     ['category', 'subcategory', 'bigC', 'smallC', 'segment', 'subSegment'], []);
@@ -73,8 +87,12 @@ const OptimizedProductRow: React.FC<OptimizedProductRowProps> = memo(({
   const isComplete = useMemo(() => 
     classifications.every(level => product[level]), [classifications, product]);
 
+  const gridTemplateColumns = useMemo(() => {
+    return `${columnWidths.id}px ${columnWidths.title}px ${columnWidths.brand}px ${columnWidths.url}px ${columnWidths.category}px ${columnWidths.subcategory}px ${columnWidths.bigC}px ${columnWidths.smallC}px ${columnWidths.segment}px ${columnWidths.subSegment}px ${columnWidths.clear}px`;
+  }, [columnWidths]);
+
   return (
-    <div className={`grid gap-2 p-1 border-b ${isComplete ? 'bg-green-50' : ''}`} style={{ gridTemplateColumns: 'var(--col-widths, 80px 160px 96px 160px 112px 112px 96px 96px 96px 112px 40px)' }}>
+    <div className={`grid gap-2 p-1 border-b ${isComplete ? 'bg-green-50' : ''}`} style={{ gridTemplateColumns }}>
       <input 
         className="text-xs p-1 border rounded bg-background text-foreground" 
         value={product.id} 

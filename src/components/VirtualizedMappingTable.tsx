@@ -3,6 +3,7 @@ import { FixedSizeList as List } from 'react-window';
 import { Product } from '../types/mapping';
 import { OptimizedHierarchyHelper } from '../utils/optimizedHierarchyHelper';
 import OptimizedProductRow from './OptimizedProductRow';
+import ResizableHeader from './ResizableHeader';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
@@ -29,6 +30,19 @@ const VirtualizedMappingTable: React.FC<VirtualizedMappingTableProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [showOnlyIncomplete, setShowOnlyIncomplete] = useState(false);
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [columnWidths, setColumnWidths] = useState({
+    id: 80,
+    title: 160,
+    brand: 96,
+    url: 160,
+    category: 112,
+    subcategory: 112,
+    bigC: 96,
+    smallC: 96,
+    segment: 96,
+    subSegment: 112,
+    clear: 40
+  });
 
   // Debounce search to prevent UI freezing
   React.useEffect(() => {
@@ -89,6 +103,27 @@ const VirtualizedMappingTable: React.FC<VirtualizedMappingTableProps> = ({
 
   const completionPercentage = products.length > 0 ? Math.round((completedCount / products.length) * 100) : 0;
 
+  const handleColumnResize = useCallback((column: string, width: number) => {
+    setColumnWidths(prev => ({
+      ...prev,
+      [column]: Math.max(width, 60) // Minimum width of 60px
+    }));
+  }, []);
+
+  const columns = useMemo(() => [
+    { key: 'id', title: 'ID', width: columnWidths.id, hasCheckbox: true },
+    { key: 'title', title: 'Title', width: columnWidths.title, hasCheckbox: true },
+    { key: 'brand', title: 'Brand', width: columnWidths.brand, hasCheckbox: true },
+    { key: 'url', title: 'URL', width: columnWidths.url, hasCheckbox: true },
+    { key: 'category', title: 'Category', width: columnWidths.category },
+    { key: 'subcategory', title: 'Subcategory', width: columnWidths.subcategory },
+    { key: 'bigC', title: 'Big C', width: columnWidths.bigC },
+    { key: 'smallC', title: 'Small C', width: columnWidths.smallC },
+    { key: 'segment', title: 'Segment', width: columnWidths.segment },
+    { key: 'subSegment', title: 'Sub-segment', width: columnWidths.subSegment },
+    { key: 'clear', title: 'Clear', width: columnWidths.clear }
+  ], [columnWidths]);
+
   const Row = useCallback(({ index, style }: { index: number; style: React.CSSProperties }) => {
     const product = filteredProducts[index];
     return (
@@ -97,10 +132,11 @@ const VirtualizedMappingTable: React.FC<VirtualizedMappingTableProps> = ({
           product={product}
           hierarchyHelper={hierarchyHelper}
           onProductUpdate={onProductUpdate}
+          columnWidths={columnWidths}
         />
       </div>
     );
-  }, [filteredProducts, hierarchyHelper, onProductUpdate]);
+  }, [filteredProducts, hierarchyHelper, onProductUpdate, columnWidths]);
 
   if (products.length === 0) {
     return (
@@ -172,33 +208,7 @@ const VirtualizedMappingTable: React.FC<VirtualizedMappingTableProps> = ({
 
       {/* Virtualized table */}
       <Card className="overflow-hidden">
-        <div className="border-b bg-muted/30 p-4">
-          <div className="grid gap-2 text-sm font-medium text-foreground" style={{ gridTemplateColumns: 'var(--col-widths, 80px 160px 96px 160px 112px 112px 96px 96px 96px 112px 40px)' }}>
-            <div className="flex items-center gap-1">
-              <span>ID</span>
-              <input type="checkbox" defaultChecked className="w-3 h-3" title="Enable editing" />
-            </div>
-            <div className="flex items-center gap-1">
-              <span>Title</span>
-              <input type="checkbox" defaultChecked className="w-3 h-3" title="Enable editing" />
-            </div>
-            <div className="flex items-center gap-1">
-              <span>Brand</span>
-              <input type="checkbox" defaultChecked className="w-3 h-3" title="Enable editing" />
-            </div>
-            <div className="flex items-center gap-1">
-              <span>URL</span>
-              <input type="checkbox" defaultChecked className="w-3 h-3" title="Enable editing" />
-            </div>
-            <div>Category</div>
-            <div>Subcategory</div>
-            <div>Big C</div>
-            <div>Small C</div>
-            <div>Segment</div>
-            <div>Sub-segment</div>
-            <div>Clear</div>
-          </div>
-        </div>
+        <ResizableHeader columns={columns} onColumnResize={handleColumnResize} />
         
         {filteredProducts.length > 0 ? (
           <List
