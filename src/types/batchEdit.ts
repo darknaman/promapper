@@ -23,7 +23,6 @@ export interface ProductTableLayout {
   columnWidths: Record<string, number>;
   minColumnWidths: Record<string, number>;
   totalFrozenWidth: number;
-  totalScrollableWidth: number;
 }
 
 export interface BatchEditState {

@@ -327,7 +327,7 @@ const FrozenTable: React.FC<FrozenTableProps> = ({
           columnWidth={getColumnWidth}
           rowHeight={getRowHeight}
           height={Math.min(600, products.length * ROW_HEIGHT)}
-          width={Math.max(1200, layout.totalScrollableWidth + layout.totalFrozenWidth + 60)}
+          width={window.innerWidth || 1200}
           onScroll={handleScroll}
           style={{ overflowX: 'auto' }}
         >
