@@ -30,6 +30,43 @@ const VirtualizedMappingTable: React.FC<VirtualizedMappingTableProps> = ({
   const [showOnlyIncomplete, setShowOnlyIncomplete] = useState(false);
 
   const filteredProducts = useMemo(() => {
+    // For large datasets, optimize filtering
+    if (products.length > 5000) {
+      const searchLower = searchTerm.toLowerCase();
+      const levels = ['category', 'subcategory', 'bigC', 'smallC', 'segment', 'subSegment'];
+      
+      const result: Product[] = [];
+      
+      for (let i = 0; i < products.length; i++) {
+        const product = products[i];
+        
+        // Fast search check
+        const matchesSearch = !searchTerm || 
+          product.title.toLowerCase().includes(searchLower) ||
+          (product.brand && product.brand.toLowerCase().includes(searchLower)) ||
+          product.id.toLowerCase().includes(searchLower);
+
+        if (!matchesSearch) continue;
+
+        // Fast incomplete check
+        if (showOnlyIncomplete) {
+          let isIncomplete = false;
+          for (const level of levels) {
+            if (!product[level as keyof Product]) {
+              isIncomplete = true;
+              break;
+            }
+          }
+          if (!isIncomplete) continue;
+        }
+
+        result.push(product);
+      }
+      
+      return result;
+    }
+    
+    // For smaller datasets, use regular filter
     return products.filter(product => {
       const matchesSearch = !searchTerm || 
         product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||

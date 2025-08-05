@@ -67,27 +67,58 @@ const Index = () => {
     return helper;
   }, [hierarchyRules]);
 
-  const handleProductsUpload = (data: any[], fileName: string) => {
+  const handleProductsUpload = useCallback(async (data: any[], fileName: string) => {
     try {
-      const processedProducts: Product[] = data.map((row, index) => ({
-        id: row.id || row.ID || `product-${index}`,
-        title: row.title || row.Title || '',
-        brand: row.brand || row.Brand || '',
-        url: row.url || row.URL || '',
-        category: undefined,
-        subcategory: undefined,
-        bigC: undefined,
-        smallC: undefined,
-        segment: undefined,
-        subSegment: undefined
-      }));
-
-      setProducts(processedProducts);
+      // For large datasets, process in batches to avoid blocking the UI
+      if (data.length > 1000) {
+        const batchSize = 1000;
+        const processedProducts: Product[] = [];
+        
+        for (let i = 0; i < data.length; i += batchSize) {
+          const batch = data.slice(i, i + batchSize);
+          const processedBatch = batch.map((row, index) => ({
+            id: row.id || row.ID || `product-${i + index}`,
+            title: row.title || row.Title || '',
+            brand: row.brand || row.Brand || '',
+            url: row.url || row.URL || '',
+            category: undefined,
+            subcategory: undefined,
+            bigC: undefined,
+            smallC: undefined,
+            segment: undefined,
+            subSegment: undefined
+          }));
+          
+          processedProducts.push(...processedBatch);
+          
+          // Yield control to keep UI responsive
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
+        
+        setProducts(processedProducts);
+      } else {
+        // For smaller datasets, process normally
+        const processedProducts: Product[] = data.map((row, index) => ({
+          id: row.id || row.ID || `product-${index}`,
+          title: row.title || row.Title || '',
+          brand: row.brand || row.Brand || '',
+          url: row.url || row.URL || '',
+          category: undefined,
+          subcategory: undefined,
+          bigC: undefined,
+          smallC: undefined,
+          segment: undefined,
+          subSegment: undefined
+        }));
+        
+        setProducts(processedProducts);
+      }
+      
       setProductsFileName(fileName);
       
       toast({
         title: "Products loaded successfully",
-        description: `Loaded ${processedProducts.length} products from ${fileName}`,
+        description: `Loaded ${data.length} products from ${fileName}`,
       });
     } catch (error) {
       toast({
@@ -96,7 +127,7 @@ const Index = () => {
         variant: "destructive",
       });
     }
-  };
+  }, [toast]);
 
   const handleHierarchyUpload = (data: any[], fileName: string) => {
     try {
