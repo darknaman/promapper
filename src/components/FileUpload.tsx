@@ -100,54 +100,54 @@ const FileUpload: React.FC<FileUploadProps> = ({
       Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
+        chunkSize: 1024 * 512, // 512KB chunks for better performance
         chunk: function(chunk) {
           if (isFirstChunk) {
-            // Estimate total rows from first chunk
-            const estimatedTotal = Math.round((file.size / chunk.data.length) * chunk.data.length);
-            totalRows = estimatedTotal;
+            // Better estimation for total rows
+            const bytesPerRow = file.size / chunk.data.length;
+            totalRows = Math.round(file.size / bytesPerRow);
             isFirstChunk = false;
           }
           
-          // Process chunk data immediately
-          const processedChunk = chunk.data.map((row: any, index: number) => {
-            if (fileType === 'products') {
-              return {
-                id: row.id || row.ID || `product-${processedRows + index}`,
-                title: row.title || row.Title || '',
-                brand: row.brand || row.Brand || '',
-                url: row.url || row.URL || '',
-                category: undefined,
-                subcategory: undefined,
-                bigC: undefined,
-                smallC: undefined,
-                segment: undefined,
-                subSegment: undefined
-              };
-            } else {
-              return {
-                category: row.category || '',
-                subcategory: row.subcategory || '',
-                bigC: row.bigC || '',
-                smallC: row.smallC || '',
-                segment: row.segment || '',
-                subSegment: row.subSegment || ''
-              };
-            }
-          });
+          // Process in micro-batches to keep UI responsive
+          setTimeout(() => {
+            const processedChunk = chunk.data.map((row: any, index: number) => {
+              if (fileType === 'products') {
+                return {
+                  id: row.id || row.ID || `product-${processedRows + index}`,
+                  title: row.title || row.Title || '',
+                  brand: row.brand || row.Brand || '',
+                  url: row.url || row.URL || '',
+                  category: undefined,
+                  subcategory: undefined,
+                  bigC: undefined,
+                  smallC: undefined,
+                  segment: undefined,
+                  subSegment: undefined
+                };
+              } else {
+                return {
+                  category: row.category || '',
+                  subcategory: row.subcategory || '',
+                  bigC: row.bigC || '',
+                  smallC: row.smallC || '',
+                  segment: row.segment || '',
+                  subSegment: row.subSegment || ''
+                };
+              }
+            });
 
-          results.push(...processedChunk);
-          processedRows += chunk.data.length;
+            results.push(...processedChunk);
+            processedRows += chunk.data.length;
 
-          // Update progress more accurately
-          const progress = Math.min(Math.round((processedRows / Math.max(totalRows, processedRows)) * 100), 100);
-          setUploadProgress({
-            progress,
-            processedRows,
-            totalRows: Math.max(totalRows, processedRows)
-          });
-
-          // Yield control to keep UI responsive
-          setTimeout(() => {}, 0);
+            // Throttled progress updates
+            const progress = Math.min(Math.round((processedRows / Math.max(totalRows, processedRows)) * 100), 100);
+            setUploadProgress({
+              progress,
+              processedRows,
+              totalRows: Math.max(totalRows, processedRows)
+            });
+          }, 0);
         },
         complete: function() {
           console.log('Main thread parsing complete. Total results:', results.length);

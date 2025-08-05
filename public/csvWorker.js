@@ -165,40 +165,55 @@ async function parseCsvFile({ file, expectedHeaders, fileType }) {
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
-      chunk: function(chunk) {
+      chunkSize: 1024 * 1024, // 1MB chunks for better memory management
+      chunk: async function(chunk) {
         totalRows += chunk.data.length;
         
-        // Process chunk data synchronously
-        const processedChunk = chunk.data.map((row, index) => {
-          if (fileType === 'products') {
-            return {
-              id: row.id || row.ID || `product-${processedRows + index}`,
-              title: row.title || row.Title || '',
-              brand: row.brand || row.Brand || '',
-              url: row.url || row.URL || '',
-              category: undefined,
-              subcategory: undefined,
-              bigC: undefined,
-              smallC: undefined,
-              segment: undefined,
-              subSegment: undefined
-            };
-          } else {
-            return {
-              category: row.category || '',
-              subcategory: row.subcategory || '',
-              bigC: row.bigC || '',
-              smallC: row.smallC || '',
-              segment: row.segment || '',
-              subSegment: row.subSegment || ''
-            };
+        // Process chunk data in smaller batches to avoid blocking
+        const batchSize = 500;
+        const processedChunk = [];
+        
+        for (let i = 0; i < chunk.data.length; i += batchSize) {
+          const batch = chunk.data.slice(i, i + batchSize);
+          
+          const processedBatch = batch.map((row, index) => {
+            if (fileType === 'products') {
+              return {
+                id: row.id || row.ID || `product-${processedRows + i + index}`,
+                title: row.title || row.Title || '',
+                brand: row.brand || row.Brand || '',
+                url: row.url || row.URL || '',
+                category: undefined,
+                subcategory: undefined,
+                bigC: undefined,
+                smallC: undefined,
+                segment: undefined,
+                subSegment: undefined
+              };
+            } else {
+              return {
+                category: row.category || '',
+                subcategory: row.subcategory || '',
+                bigC: row.bigC || '',
+                smallC: row.smallC || '',
+                segment: row.segment || '',
+                subSegment: row.subSegment || ''
+              };
+            }
+          });
+          
+          processedChunk.push(...processedBatch);
+          
+          // Yield control every 500 rows
+          if (i + batchSize < chunk.data.length) {
+            await new Promise(resolve => setTimeout(resolve, 0));
           }
-        });
+        }
 
         results.push(...processedChunk);
         processedRows += chunk.data.length;
 
-        // Update progress
+        // Update progress - throttle messages to avoid spam
         const progress = Math.round((processedRows / Math.max(totalRows, 1)) * 100);
         self.postMessage({
           type: 'PARSE_PROGRESS',

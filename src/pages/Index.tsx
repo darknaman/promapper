@@ -69,14 +69,17 @@ const Index = () => {
 
   const handleProductsUpload = useCallback(async (data: any[], fileName: string) => {
     try {
-      // For large datasets, process in batches to avoid blocking the UI
-      if (data.length > 1000) {
-        const batchSize = 1000;
+      // Use requestIdleCallback for large datasets to avoid blocking
+      if (data.length > 5000) {
+        // Process in smaller chunks using requestIdleCallback
         const processedProducts: Product[] = [];
+        const chunkSize = 1000;
         
-        for (let i = 0; i < data.length; i += batchSize) {
-          const batch = data.slice(i, i + batchSize);
-          const processedBatch = batch.map((row, index) => ({
+        for (let i = 0; i < data.length; i += chunkSize) {
+          const chunk = data.slice(i, i + chunkSize);
+          
+          // Process chunk
+          const processedChunk = chunk.map((row, index) => ({
             id: row.id || row.ID || `product-${i + index}`,
             title: row.title || row.Title || '',
             brand: row.brand || row.Brand || '',
@@ -89,12 +92,19 @@ const Index = () => {
             subSegment: undefined
           }));
           
-          processedProducts.push(...processedBatch);
+          processedProducts.push(...processedChunk);
           
-          // Yield control to keep UI responsive
-          await new Promise(resolve => setTimeout(resolve, 0));
+          // Use requestIdleCallback for better performance, fallback to setTimeout
+          await new Promise<void>(resolve => {
+            if (typeof requestIdleCallback !== 'undefined') {
+              requestIdleCallback(() => resolve());
+            } else {
+              setTimeout(() => resolve(), 0);
+            }
+          });
         }
         
+        // Update state in one go to minimize re-renders
         setProducts(processedProducts);
       } else {
         // For smaller datasets, process normally
