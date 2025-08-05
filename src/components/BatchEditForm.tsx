@@ -92,7 +92,7 @@ const BatchEditForm: React.FC<BatchEditFormProps> = ({
 
   return (
     <AlertDialog open={isOpen} onOpenChange={onClose}>
-      <AlertDialogContent className="max-w-4xl max-h-[80vh] overflow-auto z-50">
+      <AlertDialogContent className="max-w-4xl max-h-[80vh] overflow-auto" style={{ zIndex: 100 }}>
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center justify-between">
             <span>Batch Edit Products</span>
@@ -121,7 +121,7 @@ const BatchEditForm: React.FC<BatchEditFormProps> = ({
                     </Button>
                   )}
                 </div>
-                <div className="relative z-[100]">
+                <div style={{ position: 'relative', zIndex: 999999 }}>
                   <CascadingSelect
                     options={hierarchyHelper.getAvailableOptions(level, formData)}
                     value={formData[level]}

@@ -25,12 +25,14 @@ const CascadingSelect: React.FC<CascadingSelectProps> = ({
     control: (provided: any, state: any) => ({
       ...provided,
       minHeight: '32px',
-      border: '1px solid #d1d5db',
+      border: '1px solid hsl(var(--border))',
       borderRadius: '4px',
-      backgroundColor: isDisabled ? '#f3f4f6' : '#ffffff',
+      backgroundColor: isDisabled ? 'hsl(var(--muted))' : 'hsl(var(--background))',
       boxShadow: 'none',
+      width: 'auto',
+      minWidth: '120px',
       '&:hover': {
-        borderColor: '#9ca3af'
+        borderColor: 'hsl(var(--ring))'
       }
     }),
     option: (provided: any, state: any) => ({
@@ -54,8 +56,8 @@ const CascadingSelect: React.FC<CascadingSelectProps> = ({
       backgroundColor: 'hsl(var(--popover))',
       border: '1px solid hsl(var(--border))',
       borderRadius: '6px',
-      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-      zIndex: 99999
+      boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+      zIndex: 999999
     }),
     menuList: (provided: any) => ({
       ...provided,
