@@ -33,11 +33,16 @@ const BatchEditForm: React.FC<BatchEditFormProps> = ({
   const classifications: ClassificationLevel[] = ['category', 'subcategory', 'bigC', 'smallC', 'segment', 'subSegment'];
 
   const handleFieldChange = useCallback((level: ClassificationLevel, value: string | null) => {
-    setFormData(prev => ({
-      ...prev,
+    const newFormData = {
+      ...formData,
       [level]: value || undefined
-    }));
-  }, []);
+    };
+
+    // Auto-complete selections based on hierarchy
+    const autoCompletedSelections = hierarchyHelper.autoCompleteSelections(newFormData);
+    
+    setFormData(autoCompletedSelections);
+  }, [formData, hierarchyHelper]);
 
   const handleClearField = useCallback((level: ClassificationLevel) => {
     setFormData(prev => {
@@ -87,7 +92,7 @@ const BatchEditForm: React.FC<BatchEditFormProps> = ({
 
   return (
     <AlertDialog open={isOpen} onOpenChange={onClose}>
-      <AlertDialogContent className="max-w-4xl max-h-[80vh] overflow-auto">
+      <AlertDialogContent className="max-w-4xl max-h-[80vh] overflow-auto z-50">
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center justify-between">
             <span>Batch Edit Products</span>
@@ -116,13 +121,15 @@ const BatchEditForm: React.FC<BatchEditFormProps> = ({
                     </Button>
                   )}
                 </div>
-                <CascadingSelect
-                  options={hierarchyHelper.getAvailableOptions(level, formData)}
-                  value={formData[level]}
-                  onChange={(value) => handleFieldChange(level, value)}
-                  placeholder={`Select ${level}...`}
-                  className="h-10"
-                />
+                <div className="relative z-[100]">
+                  <CascadingSelect
+                    options={hierarchyHelper.getAvailableOptions(level, formData)}
+                    value={formData[level]}
+                    onChange={(value) => handleFieldChange(level, value)}
+                    placeholder={`Select ${level}...`}
+                    className="h-10"
+                  />
+                </div>
               </div>
             ))}
           </div>

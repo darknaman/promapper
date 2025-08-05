@@ -97,9 +97,11 @@ const CascadingSelect: React.FC<CascadingSelectProps> = ({
         isSearchable
         styles={customStyles}
         menuPortalTarget={document.body}
-        menuPosition="absolute"
+        menuPosition="fixed"
         menuPlacement="auto"
         noOptionsMessage={() => "No options available"}
+        className="react-select-container"
+        classNamePrefix="react-select"
       />
     </div>
   );

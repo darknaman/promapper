@@ -70,6 +70,9 @@ const FrozenTable: React.FC<FrozenTableProps> = ({
   const allColumns = [...frozenColumns, ...scrollableColumns];
 
   const getColumnWidth = useCallback((columnIndex: number) => {
+    if (columnIndex >= allColumns.length) {
+      return 60; // Clear column width
+    }
     return allColumns[columnIndex]?.width || 100;
   }, [allColumns]);
 
@@ -90,6 +93,11 @@ const FrozenTable: React.FC<FrozenTableProps> = ({
         startWidth + deltaX
       );
       onColumnResize(columnKey, newWidth);
+      
+      // Force grid re-render
+      if (gridRef.current) {
+        gridRef.current.resetAfterColumnIndex(0, true);
+      }
     };
 
     const handleMouseUp = () => {
@@ -97,6 +105,11 @@ const FrozenTable: React.FC<FrozenTableProps> = ({
       setResizeColumn(null);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      
+      // Final grid re-render
+      if (gridRef.current) {
+        gridRef.current.resetAfterColumnIndex(0, true);
+      }
     };
 
     document.addEventListener('mousemove', handleMouseMove);
