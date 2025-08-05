@@ -9,13 +9,15 @@ interface ProductRowProps {
   hierarchyHelper: OptimizedHierarchyHelper;
   onProductUpdate: (productId: string, updatedProduct: Product) => void;
   isEven: boolean;
+  columnWidths?: Record<string, number>;
 }
 
 const ProductRow: React.FC<ProductRowProps> = memo(({
   product,
   hierarchyHelper,
   onProductUpdate,
-  isEven
+  isEven,
+  columnWidths
 }) => {
   const classifications: ClassificationLevel[] = useMemo(() => 
     ['category', 'subcategory', 'bigC', 'smallC', 'segment', 'subSegment'], []);
@@ -82,7 +84,7 @@ const ProductRow: React.FC<ProductRowProps> = memo(({
       hover:bg-mapping-row-hover
       ${isComplete ? 'border-l-4 border-l-success' : ''}
     `}>
-      <td className="px-3 py-3">
+      <td className="px-3 py-3 border-r border-border/20" style={{ width: columnWidths?.id }}>
         <Input
           value={product.id}
           onChange={(e) => handleProductFieldChange('id', e.target.value)}
@@ -91,7 +93,7 @@ const ProductRow: React.FC<ProductRowProps> = memo(({
         />
       </td>
       
-      <td className="px-3 py-3">
+      <td className="px-3 py-3 border-r border-border/20" style={{ width: columnWidths?.title }}>
         <Input
           value={product.title}
           onChange={(e) => handleProductFieldChange('title', e.target.value)}
@@ -100,7 +102,7 @@ const ProductRow: React.FC<ProductRowProps> = memo(({
         />
       </td>
       
-      <td className="px-3 py-3">
+      <td className="px-3 py-3 border-r border-border/20" style={{ width: columnWidths?.brand }}>
         <Input
           value={product.brand || ''}
           onChange={(e) => handleProductFieldChange('brand', e.target.value)}
@@ -109,7 +111,7 @@ const ProductRow: React.FC<ProductRowProps> = memo(({
         />
       </td>
       
-      <td className="px-3 py-3">
+      <td className="px-3 py-3 border-r border-border/20" style={{ width: columnWidths?.url }}>
         <Input
           value={product.url || ''}
           onChange={(e) => handleProductFieldChange('url', e.target.value)}
@@ -118,8 +120,12 @@ const ProductRow: React.FC<ProductRowProps> = memo(({
         />
       </td>
       
-      {classifications.map((level) => (
-        <td key={level} className="px-2 py-3">
+      {classifications.map((level, index) => (
+        <td 
+          key={level} 
+          className={`px-2 py-3 ${index < classifications.length - 1 ? 'border-r border-border/20' : ''}`}
+          style={{ width: columnWidths?.[level] }}
+        >
           <CascadingSelect
             options={getOptionsForLevel(level)}
             value={product[level]}

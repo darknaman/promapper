@@ -1,13 +1,14 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Product, HierarchyRule } from '../types/mapping';
 import { OptimizedHierarchyHelper } from '../utils/optimizedHierarchyHelper';
 import FileUpload from '../components/FileUpload';
-import MappingTable from '../components/MappingTable';
+import ResizableTable from '../components/ResizableTable';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { useToast } from '../hooks/use-toast';
-import { Shuffle, Database, Download, RotateCcw, FileDown } from 'lucide-react';
+import { Shuffle, Database, Download, RotateCcw, FileDown, Save, RefreshCw } from 'lucide-react';
+import { saveMappingData, loadMappingData, clearMappingData, hasSavedData, getLastSavedTime, AutoSaveManager } from '../utils/mappingPersistence';
 import logo from '../assets/logo.svg';
 
 const Index = () => {
@@ -15,7 +16,52 @@ const Index = () => {
   const [hierarchyRules, setHierarchyRules] = useState<HierarchyRule[]>([]);
   const [productsFileName, setProductsFileName] = useState<string>('');
   const [hierarchyFileName, setHierarchyFileName] = useState<string>('');
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const { toast } = useToast();
+  const autoSaveManagerRef = useRef<AutoSaveManager | null>(null);
+
+  // Initialize auto-save manager
+  useEffect(() => {
+    autoSaveManagerRef.current = new AutoSaveManager((products, hierarchyRules, productsFileName, hierarchyFileName) => {
+      saveMappingData(products, hierarchyRules, productsFileName, hierarchyFileName);
+      setLastSaved(new Date());
+      setHasUnsavedChanges(false);
+      toast({
+        title: "Auto-saved",
+        description: "Your mappings have been automatically saved.",
+      });
+    });
+
+    return () => {
+      autoSaveManagerRef.current?.destroy();
+    };
+  }, [toast]);
+
+  // Load saved data on component mount
+  useEffect(() => {
+    const savedData = loadMappingData();
+    if (savedData && (savedData.products.length > 0 || savedData.hierarchyRules.length > 0)) {
+      setProducts(savedData.products);
+      setHierarchyRules(savedData.hierarchyRules);
+      setProductsFileName(savedData.productsFileName || '');
+      setHierarchyFileName(savedData.hierarchyFileName || '');
+      setLastSaved(new Date(savedData.lastSaved));
+      
+      toast({
+        title: "Data restored",
+        description: `Loaded ${savedData.products.length} products and ${savedData.hierarchyRules.length} hierarchy rules from previous session.`,
+      });
+    }
+  }, [toast]);
+
+  // Auto-save when data changes
+  useEffect(() => {
+    if (products.length > 0 || hierarchyRules.length > 0) {
+      setHasUnsavedChanges(true);
+      autoSaveManagerRef.current?.scheduleSave(products, hierarchyRules, productsFileName, hierarchyFileName);
+    }
+  }, [products, hierarchyRules, productsFileName, hierarchyFileName]);
 
   const hierarchyHelper = useMemo(() => {
     const helper = new OptimizedHierarchyHelper(hierarchyRules);
@@ -271,11 +317,25 @@ const Index = () => {
     });
   };
 
+  const manualSave = () => {
+    saveMappingData(products, hierarchyRules, productsFileName, hierarchyFileName);
+    setLastSaved(new Date());
+    setHasUnsavedChanges(false);
+    
+    toast({
+      title: "Data saved",
+      description: "Your mappings have been manually saved.",
+    });
+  };
+
   const clearAll = () => {
     setProducts([]);
     setHierarchyRules([]);
     setProductsFileName('');
     setHierarchyFileName('');
+    setLastSaved(null);
+    setHasUnsavedChanges(false);
+    clearMappingData();
     
     toast({
       title: "Data cleared",
@@ -324,16 +384,63 @@ const Index = () => {
           </Button>
           
           {(products.length > 0 || hierarchyRules.length > 0) && (
+            <>
+              <Button
+                variant="outline"
+                onClick={manualSave}
+                className="hover:bg-success/10 text-success border-success"
+                disabled={!hasUnsavedChanges}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {hasUnsavedChanges ? 'Save Changes' : 'Saved'}
+              </Button>
+              
+              <Button
+                variant="outline"
+                onClick={clearAll}
+                className="hover:bg-destructive/10 text-destructive border-destructive"
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Clear All Data
+              </Button>
+            </>
+          )}
+          
+          {hasSavedData() && (
             <Button
               variant="outline"
-              onClick={clearAll}
-              className="hover:bg-destructive/10 text-destructive border-destructive"
+              onClick={() => {
+                const savedData = loadMappingData();
+                if (savedData) {
+                  setProducts(savedData.products);
+                  setHierarchyRules(savedData.hierarchyRules);
+                  setProductsFileName(savedData.productsFileName || '');
+                  setHierarchyFileName(savedData.hierarchyFileName || '');
+                  setLastSaved(new Date(savedData.lastSaved));
+                  setHasUnsavedChanges(false);
+                  toast({
+                    title: "Data restored",
+                    description: "Previous session data has been restored.",
+                  });
+                }
+              }}
+              className="hover:bg-accent"
             >
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Clear All Data
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Restore Saved Data
             </Button>
           )}
         </div>
+
+        {/* Save Status */}
+        {lastSaved && (
+          <div className="text-center mb-6">
+            <p className="text-sm text-muted-foreground">
+              Last saved: {lastSaved.toLocaleString()}
+              {hasUnsavedChanges && <span className="text-orange-500 ml-2">• Unsaved changes</span>}
+            </p>
+          </div>
+        )}
 
         {/* Upload Section */}
         <div className="grid md:grid-cols-2 gap-6 mb-8">
@@ -440,21 +547,12 @@ const Index = () => {
 
         {/* Mapping Interface */}
         {products.length > 0 && hierarchyRules.length > 0 ? (
-          products.length > 100 ? (
-            <MappingTable
-              products={products}
-              hierarchyHelper={hierarchyHelper}
-              onProductUpdate={handleProductUpdate}
-              onExport={handleExport}
-            />
-          ) : (
-            <MappingTable
-              products={products}
-              hierarchyHelper={hierarchyHelper}
-              onProductUpdate={handleProductUpdate}
-              onExport={handleExport}
-            />
-          )
+          <ResizableTable
+            products={products}
+            hierarchyHelper={hierarchyHelper}
+            onProductUpdate={handleProductUpdate}
+            onExport={handleExport}
+          />
         ) : (
           <Card className="p-12 text-center">
             <div className="space-y-6">

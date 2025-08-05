@@ -201,10 +201,11 @@ async function parseCsvFile({ file, expectedHeaders, fileType }) {
             });
           },
           (progress) => {
-            processedRows += 50;
+            const chunkProcessed = Math.min(50, chunk.data.length);
+            processedRows += chunkProcessed;
             self.postMessage({
               type: 'PARSE_PROGRESS',
-              progress: Math.round((processedRows / totalRows) * 100),
+              progress: Math.round((processedRows / Math.max(totalRows, 1)) * 100),
               processedRows,
               totalRows
             });
