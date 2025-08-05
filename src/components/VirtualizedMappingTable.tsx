@@ -110,14 +110,11 @@ const VirtualizedMappingTable: React.FC<VirtualizedMappingTableProps> = ({
     }));
   }, []);
 
-  const frozenColumns = useMemo(() => [
+  const columns = useMemo(() => [
     { key: 'id', title: 'ID', width: columnWidths.id, hasCheckbox: true },
     { key: 'title', title: 'Title', width: columnWidths.title, hasCheckbox: true },
     { key: 'brand', title: 'Brand', width: columnWidths.brand, hasCheckbox: true },
-    { key: 'url', title: 'URL', width: columnWidths.url, hasCheckbox: true }
-  ], [columnWidths]);
-
-  const scrollableColumns = useMemo(() => [
+    { key: 'url', title: 'URL', width: columnWidths.url, hasCheckbox: true },
     { key: 'category', title: 'Category', width: columnWidths.category },
     { key: 'subcategory', title: 'Subcategory', width: columnWidths.subcategory },
     { key: 'bigC', title: 'Big C', width: columnWidths.bigC },
@@ -135,20 +132,18 @@ const VirtualizedMappingTable: React.FC<VirtualizedMappingTableProps> = ({
           product={product}
           hierarchyHelper={hierarchyHelper}
           onProductUpdate={onProductUpdate}
-          frozenColumns={frozenColumns}
-          scrollableColumns={scrollableColumns}
+          columnWidths={columnWidths}
         />
       </div>
     );
-  }, [filteredProducts, hierarchyHelper, onProductUpdate, frozenColumns, scrollableColumns]);
+  }, [filteredProducts, hierarchyHelper, onProductUpdate, columnWidths]);
 
-  const scrollableHeaderRef = React.useRef<HTMLDivElement>(null);
+  const headerRef = React.useRef<HTMLDivElement>(null);
   const listRef = React.useRef<any>(null);
 
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLElement;
-    if (scrollableHeaderRef.current && target) {
-      scrollableHeaderRef.current.scrollLeft = target.scrollLeft;
+  const handleScroll = useCallback((props: any) => {
+    if (headerRef.current && props.scrollLeft !== undefined) {
+      headerRef.current.scrollLeft = props.scrollLeft;
     }
   }, []);
 
@@ -220,35 +215,21 @@ const VirtualizedMappingTable: React.FC<VirtualizedMappingTableProps> = ({
         </div>
       </div>
 
-      {/* Virtualized table with frozen columns */}
+      {/* Virtualized table */}
       <Card className="overflow-hidden">
-        <div className="flex border-b bg-muted/30">
-          {/* Frozen header columns */}
-          <div className="flex-shrink-0">
-            <ResizableHeader columns={frozenColumns} onColumnResize={handleColumnResize} />
-          </div>
-          {/* Scrollable header columns */}
-          <div className="flex-1 overflow-x-auto" ref={scrollableHeaderRef}>
-            <ResizableHeader columns={scrollableColumns} onColumnResize={handleColumnResize} />
-          </div>
-        </div>
+        <ResizableHeader ref={headerRef} columns={columns} onColumnResize={handleColumnResize} />
         
         {filteredProducts.length > 0 ? (
-          <div 
-            className="overflow-x-auto"
+          <List
+            ref={listRef}
+            height={Math.min(600, filteredProducts.length * ROW_HEIGHT)}
+            itemCount={filteredProducts.length}
+            itemSize={ROW_HEIGHT}
+            width="100%"
             onScroll={handleScroll}
-            style={{ height: Math.min(600, filteredProducts.length * ROW_HEIGHT) }}
           >
-            <List
-              ref={listRef}
-              height={Math.min(600, filteredProducts.length * ROW_HEIGHT)}
-              itemCount={filteredProducts.length}
-              itemSize={ROW_HEIGHT}
-              width="100%"
-            >
-              {Row}
-            </List>
-          </div>
+            {Row}
+          </List>
         ) : (
           <div className="p-8 text-center">
             <p className="text-muted-foreground">No products found matching your search criteria.</p>

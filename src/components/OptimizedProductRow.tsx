@@ -9,26 +9,26 @@ interface OptimizedProductRowProps {
   product: Product;
   hierarchyHelper: OptimizedHierarchyHelper;
   onProductUpdate: (productId: string, updatedProduct: Product) => void;
-  frozenColumns: Array<{
-    key: string;
-    title: string;
-    width: number;
-    hasCheckbox?: boolean;
-  }>;
-  scrollableColumns: Array<{
-    key: string;
-    title: string;
-    width: number;
-    hasCheckbox?: boolean;
-  }>;
+  columnWidths: {
+    id: number;
+    title: number;
+    brand: number;
+    url: number;
+    category: number;
+    subcategory: number;
+    bigC: number;
+    smallC: number;
+    segment: number;
+    subSegment: number;
+    clear: number;
+  };
 }
 
 const OptimizedProductRow: React.FC<OptimizedProductRowProps> = memo(({
   product,
   hierarchyHelper,
   onProductUpdate,
-  frozenColumns,
-  scrollableColumns
+  columnWidths
 }) => {
   const classifications: ClassificationLevel[] = useMemo(() => 
     ['category', 'subcategory', 'bigC', 'smallC', 'segment', 'subSegment'], []);
@@ -87,88 +87,58 @@ const OptimizedProductRow: React.FC<OptimizedProductRowProps> = memo(({
   const isComplete = useMemo(() => 
     classifications.every(level => product[level]), [classifications, product]);
 
-  const frozenGridCols = useMemo(() => {
-    return frozenColumns.map(col => `${col.width}px`).join(' ');
-  }, [frozenColumns]);
+  const gridTemplateColumns = useMemo(() => {
+    return `${columnWidths.id}px ${columnWidths.title}px ${columnWidths.brand}px ${columnWidths.url}px ${columnWidths.category}px ${columnWidths.subcategory}px ${columnWidths.bigC}px ${columnWidths.smallC}px ${columnWidths.segment}px ${columnWidths.subSegment}px ${columnWidths.clear}px`;
+  }, [columnWidths]);
 
-  const scrollableGridCols = useMemo(() => {
-    return scrollableColumns.map(col => `${col.width}px`).join(' ');
-  }, [scrollableColumns]);
-
-  const renderFrozenContent = () => (
-    <>
-      {/* Product ID */}
-      <div className="text-xs text-muted-foreground font-mono truncate" title={product.id}>
-        {product.id}
-      </div>
+  return (
+    <div className={`grid gap-2 p-1 border-b ${isComplete ? 'bg-green-50' : ''}`} style={{ gridTemplateColumns }}>
+      <input 
+        className="text-xs p-1 border rounded bg-background text-foreground" 
+        value={product.id} 
+        onChange={(e) => onProductUpdate(product.id, { ...product, id: e.target.value })}
+        title={product.id}
+      />
+      <input 
+        className="text-xs p-1 border rounded bg-background text-foreground" 
+        value={product.title} 
+        onChange={(e) => onProductUpdate(product.id, { ...product, title: e.target.value })}
+        title={product.title}
+      />
+      <input 
+        className="text-xs p-1 border rounded bg-background text-foreground" 
+        value={product.brand || ''} 
+        onChange={(e) => onProductUpdate(product.id, { ...product, brand: e.target.value })}
+        title={product.brand || ''}
+      />
+      <input 
+        className="text-xs p-1 border rounded bg-background text-foreground" 
+        value={product.url || ''} 
+        onChange={(e) => onProductUpdate(product.id, { ...product, url: e.target.value })}
+        title={product.url || ''}
+      />
       
-      {/* Product Title */}
-      <div className="font-medium truncate" title={product.title}>
-        {product.title}
-      </div>
-      
-      {/* Product Brand */}
-      <div className="text-muted-foreground truncate" title={product.brand || ''}>
-        {product.brand || '-'}
-      </div>
-      
-      {/* Product URL */}
-      <div className="text-xs text-muted-foreground truncate" title={product.url || ''}>
-        {product.url ? (
-          <a href={product.url} target="_blank" rel="noopener noreferrer" className="hover:text-primary">
-            {product.url}
-          </a>
-        ) : (
-          '-'
-        )}
-      </div>
-    </>
-  );
-
-  const renderScrollableContent = () => (
-    <>
-      {/* Classification levels */}
       {classifications.map((level) => (
-        <div key={level} className="min-w-0">
+        <div key={level}>
           <CascadingSelect
-            value={currentSelections[level] || ''}
             options={hierarchyHelper.getAvailableOptions(level, currentSelections)}
-            onChange={(value) => handleClassificationChange(level, value || '')}
-            placeholder={`Select ${level}`}
+            value={product[level]}
+            onChange={(value) => handleClassificationChange(level, value)}
+            placeholder=""
+            className="h-8"
           />
         </div>
       ))}
-
-      {/* Clear button */}
-      <div className="flex justify-center">
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={clearAllMappings}
-          className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground"
-          title="Clear all mappings"
-        >
-          <Trash2 className="h-3 w-3" />
-        </Button>
-      </div>
-    </>
-  );
-
-  return (
-    <div className="border-b hover:bg-muted/50 flex">
-      {/* Frozen columns */}
-      <div className="flex-shrink-0 p-4">
-        <div className="grid gap-2 items-center text-sm" style={{ gridTemplateColumns: frozenGridCols }}>
-          {renderFrozenContent()}
-        </div>
-      </div>
       
-      {/* Scrollable columns */}
-      <div className="flex-1 p-4">
-        <div className="grid gap-2 items-center text-sm" style={{ gridTemplateColumns: scrollableGridCols }}>
-          {renderScrollableContent()}
-        </div>
-      </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={clearAllMappings}
+        className="h-8 w-8 p-0 hover:bg-destructive/10"
+        title="Clear all mappings"
+      >
+        <Trash2 className="h-3 w-3 text-destructive" />
+      </Button>
     </div>
   );
 });
