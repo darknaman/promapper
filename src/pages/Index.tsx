@@ -21,22 +21,19 @@ const Index = () => {
   const { toast } = useToast();
   const autoSaveManagerRef = useRef<AutoSaveManager | null>(null);
 
-  // Initialize auto-save manager
+  // Initialize auto-save manager (silent auto-save)
   useEffect(() => {
     autoSaveManagerRef.current = new AutoSaveManager((products, hierarchyRules, productsFileName, hierarchyFileName) => {
       saveMappingData(products, hierarchyRules, productsFileName, hierarchyFileName);
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
-      toast({
-        title: "Auto-saved",
-        description: "Your mappings have been automatically saved.",
-      });
-    });
+      // No toast for auto-save to avoid spam
+    }, false); // Silent auto-save
 
     return () => {
       autoSaveManagerRef.current?.destroy();
     };
-  }, [toast]);
+  }, []);
 
   // Load saved data on component mount
   useEffect(() => {

@@ -168,53 +168,47 @@ async function parseCsvFile({ file, expectedHeaders, fileType }) {
       chunk: function(chunk) {
         totalRows += chunk.data.length;
         
-        // Process chunk in batches
-        const batchProcessor = new BatchProcessor(50, 5);
-        
-        batchProcessor.processBatches(
-          chunk.data,
-          async (batch) => {
-            return batch.map((row, index) => {
-              if (fileType === 'products') {
-                return {
-                  id: row.id || row.ID || `product-${processedRows + index}`,
-                  title: row.title || row.Title || '',
-                  brand: row.brand || row.Brand || '',
-                  url: row.url || row.URL || '',
-                  category: undefined,
-                  subcategory: undefined,
-                  bigC: undefined,
-                  smallC: undefined,
-                  segment: undefined,
-                  subSegment: undefined
-                };
-              } else {
-                return {
-                  category: row.category || '',
-                  subcategory: row.subcategory || '',
-                  bigC: row.bigC || '',
-                  smallC: row.smallC || '',
-                  segment: row.segment || '',
-                  subSegment: row.subSegment || ''
-                };
-              }
-            });
-          },
-          (progress) => {
-            const chunkProcessed = Math.min(50, chunk.data.length);
-            processedRows += chunkProcessed;
-            self.postMessage({
-              type: 'PARSE_PROGRESS',
-              progress: Math.round((processedRows / Math.max(totalRows, 1)) * 100),
-              processedRows,
-              totalRows
-            });
+        // Process chunk data synchronously
+        const processedChunk = chunk.data.map((row, index) => {
+          if (fileType === 'products') {
+            return {
+              id: row.id || row.ID || `product-${processedRows + index}`,
+              title: row.title || row.Title || '',
+              brand: row.brand || row.Brand || '',
+              url: row.url || row.URL || '',
+              category: undefined,
+              subcategory: undefined,
+              bigC: undefined,
+              smallC: undefined,
+              segment: undefined,
+              subSegment: undefined
+            };
+          } else {
+            return {
+              category: row.category || '',
+              subcategory: row.subcategory || '',
+              bigC: row.bigC || '',
+              smallC: row.smallC || '',
+              segment: row.segment || '',
+              subSegment: row.subSegment || ''
+            };
           }
-        ).then(batchResults => {
-          results.push(...batchResults);
+        });
+
+        results.push(...processedChunk);
+        processedRows += chunk.data.length;
+
+        // Update progress
+        const progress = Math.round((processedRows / Math.max(totalRows, 1)) * 100);
+        self.postMessage({
+          type: 'PARSE_PROGRESS',
+          progress,
+          processedRows,
+          totalRows
         });
       },
       complete: function() {
+        console.log('CSV parsing complete. Total results:', results.length);
         self.postMessage({
           type: 'PARSE_COMPLETE',
           data: results,
@@ -223,6 +217,7 @@ async function parseCsvFile({ file, expectedHeaders, fileType }) {
         resolve(results);
       },
       error: function(error) {
+        console.error('CSV parsing error:', error);
         self.postMessage({
           type: 'PARSE_ERROR',
           error: error.message

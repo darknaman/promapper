@@ -128,7 +128,8 @@ export class AutoSaveManager {
   private readonly SAVE_DELAY = 2000; // 2 seconds delay
 
   constructor(
-    private onSave: (products: Product[], hierarchyRules: HierarchyRule[], productsFileName?: string, hierarchyFileName?: string) => void
+    private onSave: (products: Product[], hierarchyRules: HierarchyRule[], productsFileName?: string, hierarchyFileName?: string) => void,
+    private showToast: boolean = false // Silent by default
   ) {}
 
   /**

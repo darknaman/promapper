@@ -90,22 +90,25 @@ const FileUpload: React.FC<FileUploadProps> = ({
     }
   }, [expectedHeaders, fileType, onFileUpload, toast]);
 
-  /**
-   * Fallback processing on main thread with chunked parsing
-   */
   const processFileMainThread = useCallback(async (file: File) => {
     return new Promise<void>((resolve, reject) => {
       const results: any[] = [];
       let totalRows = 0;
       let processedRows = 0;
+      let isFirstChunk = true;
 
       Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
         chunk: function(chunk) {
-          totalRows += chunk.data.length;
+          if (isFirstChunk) {
+            // Estimate total rows from first chunk
+            const estimatedTotal = Math.round((file.size / chunk.data.length) * chunk.data.length);
+            totalRows = estimatedTotal;
+            isFirstChunk = false;
+          }
           
-          // Process chunk data
+          // Process chunk data immediately
           const processedChunk = chunk.data.map((row: any, index: number) => {
             if (fileType === 'products') {
               return {
@@ -135,18 +138,19 @@ const FileUpload: React.FC<FileUploadProps> = ({
           results.push(...processedChunk);
           processedRows += chunk.data.length;
 
-          // Update progress
-          const progress = Math.round((processedRows / Math.max(totalRows, 1)) * 100);
+          // Update progress more accurately
+          const progress = Math.min(Math.round((processedRows / Math.max(totalRows, processedRows)) * 100), 100);
           setUploadProgress({
             progress,
             processedRows,
-            totalRows
+            totalRows: Math.max(totalRows, processedRows)
           });
 
           // Yield control to keep UI responsive
           setTimeout(() => {}, 0);
         },
         complete: function() {
+          console.log('Main thread parsing complete. Total results:', results.length);
           onFileUpload(results, file.name);
           
           toast({
@@ -157,6 +161,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
           resolve();
         },
         error: function(error) {
+          console.error('Main thread parsing error:', error);
           reject(error);
         }
       });
