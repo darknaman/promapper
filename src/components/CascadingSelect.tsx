@@ -99,26 +99,6 @@ const CascadingSelect: React.FC<CascadingSelectProps> = ({
         menuPortalTarget={document.body}
         menuPosition="fixed"
         noOptionsMessage={() => "No options available"}
-        components={{
-          ClearIndicator: (props) => (
-            <div
-              style={{
-                color: 'hsl(var(--muted-foreground))',
-                cursor: 'pointer',
-                padding: '0 8px',
-                display: 'flex',
-                alignItems: 'center'
-              }}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onChange(null);
-              }}
-            >
-              ✕
-            </div>
-          )
-        }}
       />
     </div>
   );

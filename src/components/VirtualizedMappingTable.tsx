@@ -173,29 +173,29 @@ const VirtualizedMappingTable: React.FC<VirtualizedMappingTableProps> = ({
       {/* Virtualized table */}
       <Card className="overflow-hidden">
         <div className="border-b bg-muted/30 p-4">
-          <div className="grid grid-cols-12 gap-2 text-sm font-medium text-foreground">
-            <div className="flex items-center gap-2">
+          <div className="flex gap-2 text-sm font-medium text-foreground">
+            <div className="w-20 flex items-center gap-1 resize-x overflow-hidden min-w-16">
               <span>ID</span>
               <input type="checkbox" defaultChecked className="w-3 h-3" title="Enable editing" />
             </div>
-            <div className="col-span-2 flex items-center gap-2">
+            <div className="w-40 flex items-center gap-1 resize-x overflow-hidden min-w-32">
               <span>Title</span>
               <input type="checkbox" defaultChecked className="w-3 h-3" title="Enable editing" />
             </div>
-            <div className="flex items-center gap-2">
+            <div className="w-24 flex items-center gap-1 resize-x overflow-hidden min-w-20">
               <span>Brand</span>
               <input type="checkbox" defaultChecked className="w-3 h-3" title="Enable editing" />
             </div>
-            <div className="col-span-2 flex items-center gap-2">
+            <div className="w-40 flex items-center gap-1 resize-x overflow-hidden min-w-32">
               <span>URL</span>
               <input type="checkbox" defaultChecked className="w-3 h-3" title="Enable editing" />
             </div>
-            <div>Category</div>
-            <div>Subcategory</div>
-            <div>Big C</div>
-            <div>Small C</div>
-            <div>Segment</div>
-            <div>Sub-segment</div>
+            <div className="w-28 resize-x overflow-hidden min-w-24">Category</div>
+            <div className="w-28 resize-x overflow-hidden min-w-24">Subcategory</div>
+            <div className="w-24 resize-x overflow-hidden min-w-20">Big C</div>
+            <div className="w-24 resize-x overflow-hidden min-w-20">Small C</div>
+            <div className="w-24 resize-x overflow-hidden min-w-20">Segment</div>
+            <div className="w-28 resize-x overflow-hidden min-w-24">Sub-segment</div>
           </div>
         </div>
         
