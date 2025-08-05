@@ -142,3 +142,22 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* React Select dropdown z-index fixes */
+.react-select__menu-portal {
+  z-index: 9999 !important;
+}
+
+.react-select__menu {
+  z-index: 9999 !important;
+}
+
+/* Ensure react-select dropdowns appear above modals */
+[class*="react-select"] .react-select__menu {
+  z-index: 9999 !important;
+}
+
+/* Override any potential blocking elements */
+div[data-radix-popper-content-wrapper] {
+  z-index: 10000 !important;
+}
