@@ -87,7 +87,7 @@ const BatchEditForm: React.FC<BatchEditFormProps> = ({
 
   return (
     <AlertDialog open={isOpen} onOpenChange={onClose}>
-      <AlertDialogContent className="max-w-4xl max-h-[80vh] overflow-auto">
+      <AlertDialogContent className="max-w-4xl max-h-[80vh] overflow-visible" style={{ zIndex: 50 }}>
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center justify-between">
             <span>Batch Edit Products</span>
@@ -98,9 +98,9 @@ const BatchEditForm: React.FC<BatchEditFormProps> = ({
           </AlertDialogDescription>
         </AlertDialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-6 overflow-visible">
           {/* Form Fields */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 overflow-visible">
             {classifications.map((level) => (
               <div key={level} className="space-y-2">
                 <div className="flex items-center justify-between">

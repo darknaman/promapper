@@ -55,7 +55,12 @@ const CascadingSelect: React.FC<CascadingSelectProps> = ({
       border: '1px solid hsl(var(--border))',
       borderRadius: '6px',
       boxShadow: 'var(--shadow-card)',
-      zIndex: 9999
+      zIndex: 99999,
+      position: 'fixed'
+    }),
+    menuPortal: (provided: any) => ({
+      ...provided,
+      zIndex: 99999
     }),
     menuList: (provided: any) => ({
       ...provided,
@@ -98,6 +103,7 @@ const CascadingSelect: React.FC<CascadingSelectProps> = ({
         styles={customStyles}
         menuPortalTarget={document.body}
         menuPosition="fixed"
+        menuShouldBlockScroll={false}
         noOptionsMessage={() => "No options available"}
       />
     </div>
