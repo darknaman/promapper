@@ -381,7 +381,10 @@ const Index = () => {
       hierarchy: {
         level1: product.category,
         level2: product.subcategory,
-        level3: product.bigC
+        level3: product.bigC,
+        level4: product.smallC,
+        level5: product.segment,
+        level6: product.subSegment
       }
     }));
   }, [products]);
@@ -397,10 +400,22 @@ const Index = () => {
     const level3Options = Array.from(new Set(hierarchyRules.map(rule => rule.bigC).filter(Boolean)))
       .map(bigC => ({ value: bigC, label: bigC }));
 
+    const level4Options = Array.from(new Set(hierarchyRules.map(rule => rule.smallC).filter(Boolean)))
+      .map(smallC => ({ value: smallC, label: smallC }));
+
+    const level5Options = Array.from(new Set(hierarchyRules.map(rule => rule.segment).filter(Boolean)))
+      .map(segment => ({ value: segment, label: segment }));
+
+    const level6Options = Array.from(new Set(hierarchyRules.map(rule => rule.subSegment).filter(Boolean)))
+      .map(subSegment => ({ value: subSegment, label: subSegment }));
+
     return {
       level1: level1Options,
       level2: level2Options,
-      level3: level3Options
+      level3: level3Options,
+      level4: level4Options,
+      level5: level5Options,
+      level6: level6Options
     };
   }, [hierarchyRules]);
 
@@ -415,10 +430,9 @@ const Index = () => {
         category: row.hierarchy?.level1,
         subcategory: row.hierarchy?.level2,
         bigC: row.hierarchy?.level3,
-        // Keep other hierarchy levels from original
-        smallC: originalProduct?.smallC,
-        segment: originalProduct?.segment,
-        subSegment: originalProduct?.subSegment
+        smallC: row.hierarchy?.level4,
+        segment: row.hierarchy?.level5,
+        subSegment: row.hierarchy?.level6
       };
     });
     setProducts(updatedProducts);

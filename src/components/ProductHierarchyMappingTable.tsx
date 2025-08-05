@@ -2,71 +2,16 @@ import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { Checkbox } from './ui/checkbox';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { Progress } from './ui/progress';
+import { Badge } from './ui/badge';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Trash2, Check, ChevronsUpDown } from 'lucide-react';
+import { RotateCcw, Check, ChevronsUpDown, Eye, EyeOff } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { RowData, ProductHierarchyMappingTableProps, BatchEditToolbarProps } from '../types/productTable';
-
-const BatchEditToolbar: React.FC<BatchEditToolbarProps> = ({
-  selectedRowCount,
-  hierarchyOptions,
-  onSetHierarchy,
-  onClearMapping,
-  onClose
-}) => {
-  const [selectedLevel, setSelectedLevel] = useState<string>('');
-  const [selectedValue, setSelectedValue] = useState<string>('');
-
-  const handleSetHierarchy = () => {
-    if (selectedLevel && selectedValue) {
-      onSetHierarchy(selectedLevel, selectedValue);
-      setSelectedLevel('');
-      setSelectedValue('');
-    }
-  };
-
-  return (
-    <div className="flex items-center gap-4 p-4 bg-muted rounded-lg mb-4">
-      <span className="text-sm font-medium">{selectedRowCount} rows selected</span>
-      
-      <select 
-        value={selectedLevel} 
-        onChange={(e) => setSelectedLevel(e.target.value)}
-        className="px-3 py-1 border rounded text-sm"
-      >
-        <option value="">Select Level</option>
-        <option value="level1">Category</option>
-        <option value="level2">Subcategory</option>
-        <option value="level3">Big C</option>
-      </select>
-
-      <select 
-        value={selectedValue} 
-        onChange={(e) => setSelectedValue(e.target.value)}
-        className="px-3 py-1 border rounded text-sm"
-        disabled={!selectedLevel}
-      >
-        <option value="">Select Value</option>
-        {selectedLevel && hierarchyOptions[selectedLevel]?.map(option => (
-          <option key={option.value} value={option.value}>{option.label}</option>
-        ))}
-      </select>
-
-      <Button size="sm" onClick={handleSetHierarchy} disabled={!selectedLevel || !selectedValue}>
-        Set Hierarchy
-      </Button>
-      
-      <Button size="sm" variant="outline" onClick={onClearMapping}>
-        Clear Mapping
-      </Button>
-      
-      <Button size="sm" variant="ghost" onClick={onClose}>
-        Close
-      </Button>
-    </div>
-  );
-};
+import { RowData, ProductHierarchyMappingTableProps } from '../types/productTable';
+import BatchEditForm from './BatchEditForm';
+import { Product } from '../types/mapping';
+import { OptimizedHierarchyHelper } from '../utils/optimizedHierarchyHelper';
 
 const AutocompleteCell: React.FC<{
   value: string;
@@ -208,19 +153,101 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
   validateProductField
 }) => {
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+  const [showIncomplete, setShowIncomplete] = useState(false);
+  const [isBatchEditOpen, setIsBatchEditOpen] = useState(false);
+
+  // Create hierarchy helper for batch edit
+  const hierarchyHelper = useMemo(() => {
+    // Convert hierarchyOptions to rules format for OptimizedHierarchyHelper
+    const rules = [];
+    const level1Options = hierarchyOptions.level1 || [];
+    const level2Options = hierarchyOptions.level2 || [];
+    const level3Options = hierarchyOptions.level3 || [];
+    const level4Options = hierarchyOptions.level4 || [];
+    const level5Options = hierarchyOptions.level5 || [];
+    const level6Options = hierarchyOptions.level6 || [];
+    
+    // Create sample rules combinations
+    for (const cat of level1Options) {
+      for (const subcat of level2Options) {
+        for (const bigC of level3Options) {
+          rules.push({
+            category: cat.value,
+            subcategory: subcat.value,
+            bigC: bigC.value,
+            smallC: level4Options[0]?.value || '',
+            segment: level5Options[0]?.value || '',
+            subSegment: level6Options[0]?.value || ''
+          });
+        }
+      }
+    }
+    
+    return new OptimizedHierarchyHelper(rules);
+  }, [hierarchyOptions]);
 
   const columns = [
     { key: 'checkbox', label: '', width: 50 },
     { key: 'name', label: 'Product Name', width: 200 },
     { key: 'sku', label: 'SKU/ID', width: 120 },
     { key: 'brand', label: 'Brand', width: 150 },
-    { key: 'level1', label: 'Category', width: 180 },
-    { key: 'level2', label: 'Subcategory', width: 180 },
-    { key: 'level3', label: 'Big C', width: 180 },
-    { key: 'delete', label: '', width: 60 },
+    { key: 'level1', label: 'Category', width: 140 },
+    { key: 'level2', label: 'Subcategory', width: 140 },
+    { key: 'level3', label: 'Big C', width: 120 },
+    { key: 'level4', label: 'Small C', width: 120 },
+    { key: 'level5', label: 'Segment', width: 120 },
+    { key: 'level6', label: 'Sub-segment', width: 130 },
+    { key: 'clear', label: '', width: 60 },
   ];
 
   const isAllSelected = selectedRows.size === rows.length && rows.length > 0;
+
+  // Filter rows based on show incomplete
+  const filteredRows = useMemo(() => {
+    if (!showIncomplete) return rows;
+    return rows.filter(row => {
+      const hierarchy = row.hierarchy || {};
+      return !hierarchy.level1 || !hierarchy.level2 || !hierarchy.level3 || 
+             !hierarchy.level4 || !hierarchy.level5 || !hierarchy.level6;
+    });
+  }, [rows, showIncomplete]);
+
+  // Calculate completion statistics
+  const completionStats = useMemo(() => {
+    const total = rows.length;
+    const completed = rows.filter(row => {
+      const hierarchy = row.hierarchy || {};
+      return hierarchy.level1 && hierarchy.level2 && hierarchy.level3 && 
+             hierarchy.level4 && hierarchy.level5 && hierarchy.level6;
+    }).length;
+    
+    return {
+      total,
+      completed,
+      percentage: total > 0 ? Math.round((completed / total) * 100) : 0
+    };
+  }, [rows]);
+
+  // Convert rows to products for batch edit
+  const selectedProducts = useMemo((): Product[] => {
+    return Array.from(selectedRows).map(rowId => {
+      const row = rows.find(r => r.id === rowId);
+      if (!row) return null;
+      
+      return {
+        id: row.id,
+        title: row.name,
+        brand: row.brand,
+        url: '',
+        category: row.hierarchy?.level1,
+        subcategory: row.hierarchy?.level2,
+        bigC: row.hierarchy?.level3,
+        smallC: row.hierarchy?.level4,
+        segment: row.hierarchy?.level5,
+        subSegment: row.hierarchy?.level6
+      };
+    }).filter(Boolean) as Product[];
+  }, [selectedRows, rows]);
 
   const handleSelectAll = useCallback((checked: boolean) => {
     if (checked) {
@@ -249,28 +276,38 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
     onRowsChange(updatedRows);
   }, [rows, onRowsChange]);
 
-  const handleBatchSetHierarchy = useCallback((level: string, value: string) => {
+  const handleBatchUpdate = useCallback(async (updates: any) => {
     const updatedRows = rows.map(row => {
       if (selectedRows.has(row.id)) {
         return {
           ...row,
-          hierarchy: { ...row.hierarchy, [level]: value }
+          hierarchy: {
+            ...row.hierarchy,
+            level1: updates.category || row.hierarchy?.level1,
+            level2: updates.subcategory || row.hierarchy?.level2,
+            level3: updates.bigC || row.hierarchy?.level3,
+            level4: updates.smallC || row.hierarchy?.level4,
+            level5: updates.segment || row.hierarchy?.level5,
+            level6: updates.subSegment || row.hierarchy?.level6
+          }
         };
       }
       return row;
     });
     onRowsChange(updatedRows);
-  }, [rows, selectedRows, onRowsChange]);
+    setSelectedRows(new Set());
+    onSelectRows([]);
+  }, [rows, selectedRows, onRowsChange, onSelectRows]);
 
-  const handleBatchClearMapping = useCallback(() => {
+  const clearRowMapping = useCallback((rowId: string) => {
     const updatedRows = rows.map(row => {
-      if (selectedRows.has(row.id)) {
+      if (row.id === rowId) {
         return { ...row, hierarchy: {} };
       }
       return row;
     });
     onRowsChange(updatedRows);
-  }, [rows, selectedRows, onRowsChange]);
+  }, [rows, onRowsChange]);
 
   const updateField = useCallback((rowId: string, field: string, value: any) => {
     const row = rows.find(r => r.id === rowId);
@@ -288,18 +325,44 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
 
   return (
     <div className="mapping-table-container">
-      {selectedRows.size > 0 && (
-        <BatchEditToolbar
-          selectedRowCount={selectedRows.size}
-          hierarchyOptions={hierarchyOptions}
-          onSetHierarchy={handleBatchSetHierarchy}
-          onClearMapping={handleBatchClearMapping}
-          onClose={() => {
-            setSelectedRows(new Set());
-            onSelectRows([]);
-          }}
-        />
-      )}
+      {/* Progress Bar and Controls */}
+      <div className="mb-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">Progress:</span>
+              <div className="w-32">
+                <Progress value={completionStats.percentage} className="h-2" />
+              </div>
+              <span className="text-sm text-muted-foreground">
+                {completionStats.completed} / {completionStats.total} ({completionStats.percentage}%)
+              </span>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowIncomplete(!showIncomplete)}
+              className="flex items-center gap-2"
+            >
+              {showIncomplete ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {showIncomplete ? 'Show All' : 'Show Incomplete'}
+            </Button>
+            
+            {selectedRows.size > 0 && (
+              <Button
+                size="sm"
+                onClick={() => setIsBatchEditOpen(true)}
+                className="bg-gradient-primary hover:opacity-90"
+              >
+                Batch Edit ({selectedRows.size})
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
 
       <div className="border rounded-lg overflow-auto bg-card max-h-[600px]">
         <table className="w-full">
@@ -312,10 +375,10 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
                   style={{ 
                     width: column.width,
                     minWidth: column.width,
-                    position: column.key === 'delete' ? 'sticky' : 'relative',
-                    right: column.key === 'delete' ? 0 : 'auto',
-                    backgroundColor: column.key === 'delete' ? 'hsl(var(--muted))' : 'inherit',
-                    zIndex: column.key === 'delete' ? 11 : 10,
+                    position: column.key === 'clear' ? 'sticky' : 'relative',
+                    right: column.key === 'clear' ? 0 : 'auto',
+                    backgroundColor: column.key === 'clear' ? 'hsl(var(--muted))' : 'inherit',
+                    zIndex: column.key === 'clear' ? 11 : 10,
                   }}
                 >
                   {column.key === 'checkbox' ? (
@@ -332,7 +395,7 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
+            {filteredRows.map((row) => (
               <tr key={row.id} className="border-b border-border hover:bg-muted/50">
                 {columns.map((column) => (
                   <td
@@ -341,10 +404,10 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
                     style={{ 
                       width: column.width,
                       minWidth: column.width,
-                      position: column.key === 'delete' ? 'sticky' : 'relative',
-                      right: column.key === 'delete' ? 0 : 'auto',
-                      backgroundColor: column.key === 'delete' ? 'hsl(var(--background))' : 'inherit',
-                      zIndex: column.key === 'delete' ? 3 : 1,
+                      position: column.key === 'clear' ? 'sticky' : 'relative',
+                      right: column.key === 'clear' ? 0 : 'auto',
+                      backgroundColor: column.key === 'clear' ? 'hsl(var(--background))' : 'inherit',
+                      zIndex: column.key === 'clear' ? 3 : 1,
                     }}
                   >
                     {column.key === 'checkbox' && (
@@ -362,7 +425,8 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
                       />
                     )}
 
-                    {(column.key === 'level1' || column.key === 'level2' || column.key === 'level3') && (
+                    {(column.key === 'level1' || column.key === 'level2' || column.key === 'level3' || 
+                      column.key === 'level4' || column.key === 'level5' || column.key === 'level6') && (
                       <AutocompleteCell
                         value={row.hierarchy?.[column.key] || ''}
                         options={hierarchyOptions[column.key] || []}
@@ -371,16 +435,16 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
                       />
                     )}
 
-                    {column.key === 'delete' && (
+                    {column.key === 'clear' && (
                       <div className="flex justify-center">
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => onDeleteRow(row.id)}
+                          onClick={() => clearRowMapping(row.id)}
                           className="h-8 w-8 p-0 hover:bg-destructive/10"
-                          aria-label={`Delete row ${row.id}`}
+                          aria-label={`Clear mapping for row ${row.id}`}
                         >
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                          <RotateCcw className="h-4 w-4 text-muted-foreground" />
                         </Button>
                       </div>
                     )}
@@ -391,6 +455,15 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
           </tbody>
         </table>
       </div>
+
+      {/* Batch Edit Dialog */}
+      <BatchEditForm
+        selectedProducts={selectedProducts}
+        hierarchyHelper={hierarchyHelper}
+        onBatchUpdate={handleBatchUpdate}
+        onClose={() => setIsBatchEditOpen(false)}
+        isOpen={isBatchEditOpen}
+      />
     </div>
   );
 };
