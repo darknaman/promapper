@@ -33,11 +33,21 @@ const BatchEditForm: React.FC<BatchEditFormProps> = ({
   const classifications: ClassificationLevel[] = ['category', 'subcategory', 'bigC', 'smallC', 'segment', 'subSegment'];
 
   const handleFieldChange = useCallback((level: ClassificationLevel, value: string | null) => {
-    setFormData(prev => ({
-      ...prev,
-      [level]: value || undefined
-    }));
-  }, []);
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        [level]: value || undefined
+      };
+      
+      // Clear invalid selections first
+      const clearedData = hierarchyHelper.clearInvalidSelections(newData, level);
+      
+      // Auto-complete remaining fields if only one option available
+      const autoCompletedData = hierarchyHelper.autoCompleteSelections(clearedData);
+      
+      return autoCompletedData;
+    });
+  }, [hierarchyHelper]);
 
   const handleClearField = useCallback((level: ClassificationLevel) => {
     setFormData(prev => {
