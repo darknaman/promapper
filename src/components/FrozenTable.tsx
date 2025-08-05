@@ -39,6 +39,7 @@ const FrozenTable: React.FC<FrozenTableProps> = ({
   
   const [isResizing, setIsResizing] = useState(false);
   const [resizeColumn, setResizeColumn] = useState<string | null>(null);
+  const [editingCell, setEditingCell] = useState<{rowId: string, columnKey: string} | null>(null);
 
   const frozenColumns = useMemo(() => {
     return layout.frozenColumns.map(key => ({
@@ -70,6 +71,9 @@ const FrozenTable: React.FC<FrozenTableProps> = ({
   const allColumns = [...frozenColumns, ...scrollableColumns];
 
   const getColumnWidth = useCallback((columnIndex: number) => {
+    if (columnIndex >= allColumns.length) {
+      return 60; // Clear button column width
+    }
     return allColumns[columnIndex]?.width || 100;
   }, [allColumns]);
 
@@ -133,7 +137,46 @@ const FrozenTable: React.FC<FrozenTableProps> = ({
     const product = products[rowIndex];
     const column = allColumns[columnIndex];
     
-    if (!product || !column) return null;
+    if (!product) return null;
+    
+    // Handle clear button column (last column)
+    if (columnIndex >= allColumns.length) {
+      const cellStyle = {
+        ...style,
+        borderRight: '1px solid hsl(var(--border))',
+        borderBottom: '1px solid hsl(var(--border))',
+        backgroundColor: 'hsl(var(--card))',
+      };
+      
+      const clearAllMappings = () => {
+        const clearedProduct = {
+          ...product,
+          category: undefined,
+          subcategory: undefined,
+          bigC: undefined,
+          smallC: undefined,
+          segment: undefined,
+          subSegment: undefined
+        };
+        onProductUpdate(product.id, clearedProduct);
+      };
+
+      return (
+        <div style={cellStyle} className="flex items-center justify-center px-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearAllMappings}
+            className="h-8 w-8 p-0 hover:bg-destructive/10 rounded-md"
+            title="Clear all mappings"
+          >
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+        </div>
+      );
+    }
+    
+    if (!column) return null;
 
     const isFrozen = column.frozen;
     const cellStyle = {
@@ -146,18 +189,29 @@ const FrozenTable: React.FC<FrozenTableProps> = ({
 
     // Selection checkbox for ID column
     if (column.key === 'id') {
+      const isEditing = editingCell?.rowId === product.id && editingCell?.columnKey === column.key;
+      
       return (
         <div style={cellStyle} className="flex items-center gap-2 px-2">
           <Checkbox
             checked={selectedProducts.has(product.id)}
             onCheckedChange={(checked) => onProductSelect(product.id, !!checked)}
-            className="h-4 w-4"
+            className="h-4 w-4 shrink-0"
           />
           <input 
-            className="text-xs p-1 border rounded bg-background text-foreground flex-1 min-w-0" 
+            className="text-xs p-1 border rounded bg-background text-foreground flex-1 min-w-0 focus:ring-2 focus:ring-primary/50 focus:border-primary" 
             value={product.id} 
             onChange={(e) => onProductUpdate(product.id, { ...product, id: e.target.value })}
+            onFocus={() => setEditingCell({rowId: product.id, columnKey: column.key})}
+            onBlur={() => setEditingCell(null)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === 'Tab') {
+                setEditingCell(null);
+                e.currentTarget.blur();
+              }
+            }}
             title={product.id}
+            autoFocus={isEditing}
           />
         </div>
       );
@@ -166,13 +220,24 @@ const FrozenTable: React.FC<FrozenTableProps> = ({
     // Editable text fields for frozen columns
     if (isFrozen && column.editable) {
       const value = product[column.key as keyof Product] || '';
+      const isEditing = editingCell?.rowId === product.id && editingCell?.columnKey === column.key;
+      
       return (
         <div style={cellStyle} className="flex items-center px-2">
           <input 
-            className="text-xs p-1 border rounded bg-background text-foreground w-full min-w-0" 
+            className="text-xs p-1 border rounded bg-background text-foreground w-full min-w-0 focus:ring-2 focus:ring-primary/50 focus:border-primary" 
             value={value as string} 
             onChange={(e) => onProductUpdate(product.id, { ...product, [column.key]: e.target.value })}
+            onFocus={() => setEditingCell({rowId: product.id, columnKey: column.key})}
+            onBlur={() => setEditingCell(null)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === 'Tab') {
+                setEditingCell(null);
+                e.currentTarget.blur();
+              }
+            }}
             title={value as string}
+            autoFocus={isEditing}
           />
         </div>
       );
@@ -214,112 +279,86 @@ const FrozenTable: React.FC<FrozenTableProps> = ({
 
       return (
         <div style={cellStyle} className="flex items-center px-1">
-          <CascadingSelect
-            options={hierarchyHelper.getAvailableOptions(column.key as any, currentSelections)}
-            value={product[column.key as keyof Product] as string}
-            onChange={handleClassificationChange}
-            placeholder=""
-            className="h-8 text-xs"
-          />
-        </div>
-      );
-    }
-
-    // Clear button column
-    if (column.key === 'clear') {
-      const clearAllMappings = () => {
-        const clearedProduct = {
-          ...product,
-          category: undefined,
-          subcategory: undefined,
-          bigC: undefined,
-          smallC: undefined,
-          segment: undefined,
-          subSegment: undefined
-        };
-        onProductUpdate(product.id, clearedProduct);
-      };
-
-      return (
-        <div style={cellStyle} className="flex items-center justify-center px-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearAllMappings}
-            className="h-6 w-6 p-0 hover:bg-destructive/10"
-            title="Clear all mappings"
-          >
-            <Trash2 className="h-3 w-3 text-destructive" />
-          </Button>
+          <div className="w-full">
+            <CascadingSelect
+              options={hierarchyHelper.getAvailableOptions(column.key as any, currentSelections)}
+              value={product[column.key as keyof Product] as string}
+              onChange={handleClassificationChange}
+              placeholder=""
+              className="h-8 text-xs w-full"
+            />
+          </div>
         </div>
       );
     }
 
     return <div style={cellStyle} />;
-  }, [products, allColumns, selectedProducts, onProductSelect, onProductUpdate, hierarchyHelper]);
+  }, [products, allColumns, selectedProducts, onProductSelect, onProductUpdate, hierarchyHelper, editingCell]);
 
   const handleScroll = useCallback(({ scrollLeft }: any) => {
-    if (headerRef.current) {
-      const frozenWidth = layout.totalFrozenWidth;
-      headerRef.current.scrollLeft = scrollLeft;
-      
-      // Only scroll the scrollable portion
-      if (scrollableRef.current) {
-        scrollableRef.current.scrollLeft = Math.max(0, scrollLeft - frozenWidth);
-      }
+    if (headerRef.current && scrollableRef.current) {
+      // Sync scrollable header with grid scroll
+      scrollableRef.current.scrollLeft = scrollLeft;
     }
-  }, [layout.totalFrozenWidth]);
+  }, []);
 
   return (
     <div className="border rounded-lg overflow-hidden bg-card">
       {/* Header */}
-      <div 
-        ref={headerRef}
-        className="flex border-b bg-muted/30 sticky top-0 z-20"
-        style={{ height: HEADER_HEIGHT }}
-      >
-        {/* Frozen header */}
+      <div className="sticky top-0 z-20 bg-muted/30 border-b">
         <div 
-          ref={frozenRef}
-          className="flex sticky left-0 z-30 bg-muted/30 border-r-2 border-border shadow-sm"
-          style={{ width: layout.totalFrozenWidth }}
+          className="flex"
+          style={{ 
+            height: HEADER_HEIGHT,
+            width: `${layout.totalFrozenWidth + scrollableColumns.reduce((sum, col) => sum + col.width, 0) + 60}px`
+          }}
         >
-          {frozenColumns.map((column, index) => (
+          {/* Frozen header */}
+          <div 
+            className="flex sticky left-0 z-30 bg-muted/30 border-r-2 border-border shadow-sm"
+            style={{ width: layout.totalFrozenWidth }}
+          >
+            {frozenColumns.map((column, index) => (
+              <HeaderCell 
+                key={column.key} 
+                column={column} 
+                isLast={index === frozenColumns.length - 1}
+              />
+            ))}
+          </div>
+          
+          {/* Scrollable header */}
+          <div 
+            ref={scrollableRef} 
+            className="flex overflow-hidden"
+            style={{ width: `${scrollableColumns.reduce((sum, col) => sum + col.width, 0) + 60}px` }}
+          >
+            {scrollableColumns.map((column, index) => (
+              <HeaderCell 
+                key={column.key} 
+                column={column} 
+                isLast={false}
+              />
+            ))}
+            {/* Clear column */}
             <HeaderCell 
-              key={column.key} 
-              column={column} 
-              isLast={index === frozenColumns.length - 1}
+              column={{ 
+                key: 'clear', 
+                label: 'Clear', 
+                width: 60, 
+                minWidth: 60, 
+                resizable: false, 
+                editable: false, 
+                frozen: false 
+              }} 
+              isLast={true}
             />
-          ))}
-        </div>
-        
-        {/* Scrollable header */}
-        <div ref={scrollableRef} className="flex overflow-hidden">
-          {scrollableColumns.map((column, index) => (
-            <HeaderCell 
-              key={column.key} 
-              column={column} 
-              isLast={index === scrollableColumns.length - 1}
-            />
-          ))}
-          {/* Clear column */}
-          <HeaderCell 
-            column={{ 
-              key: 'clear', 
-              label: 'Clear', 
-              width: 60, 
-              minWidth: 60, 
-              resizable: false, 
-              editable: false, 
-              frozen: false 
-            }} 
-            isLast={true}
-          />
+          </div>
         </div>
       </div>
 
       {/* Grid */}
-      <div className="relative">
+      <div className="relative overflow-auto">
         <Grid
           ref={gridRef}
           columnCount={allColumns.length + 1} // +1 for clear column
@@ -327,9 +366,12 @@ const FrozenTable: React.FC<FrozenTableProps> = ({
           columnWidth={getColumnWidth}
           rowHeight={getRowHeight}
           height={Math.min(600, products.length * ROW_HEIGHT)}
-          width={window.innerWidth || 1200}
+          width={layout.totalFrozenWidth + scrollableColumns.reduce((sum, col) => sum + col.width, 0) + 60}
           onScroll={handleScroll}
-          style={{ overflowX: 'auto' }}
+          style={{ 
+            overflowX: 'auto',
+            overflowY: 'auto'
+          }}
         >
           {Cell}
         </Grid>
