@@ -62,7 +62,8 @@ const VirtualizedMappingTable: React.FC<VirtualizedMappingTableProps> = ({
       segment: 60,
       subSegment: 80,
     },
-    totalFrozenWidth: 520 // id + title + brand + url
+    totalFrozenWidth: 520, // id + title + brand + url
+    totalScrollableWidth: 624 // category + subcategory + bigC + smallC + segment + subSegment
   });
 
   // Debounce search to prevent UI freezing
@@ -136,10 +137,16 @@ const VirtualizedMappingTable: React.FC<VirtualizedMappingTableProps> = ({
         sum + newColumnWidths[col], 0
       );
       
+      // Recalculate total scrollable width
+      const totalScrollableWidth = prev.scrollableColumns.reduce((sum, col) => 
+        sum + newColumnWidths[col], 0
+      );
+      
       return {
         ...prev,
         columnWidths: newColumnWidths,
-        totalFrozenWidth
+        totalFrozenWidth,
+        totalScrollableWidth
       };
     });
   }, []);
