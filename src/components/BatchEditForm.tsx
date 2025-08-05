@@ -7,7 +7,7 @@ import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
 import { X, Save, Eye } from 'lucide-react';
 
 interface BatchEditFormProps {
@@ -86,17 +86,17 @@ const BatchEditForm: React.FC<BatchEditFormProps> = ({
   if (!isOpen) return null;
 
   return (
-    <AlertDialog open={isOpen} onOpenChange={onClose}>
-      <AlertDialogContent className="max-w-4xl max-h-[80vh] overflow-visible" style={{ zIndex: 50 }}>
-        <AlertDialogHeader>
-          <AlertDialogTitle className="flex items-center justify-between">
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-visible">
+        <DialogHeader>
+          <DialogTitle className="flex items-center justify-between">
             <span>Batch Edit Products</span>
             <Badge variant="outline">{selectedProducts.length} selected</Badge>
-          </AlertDialogTitle>
-          <AlertDialogDescription>
+          </DialogTitle>
+          <DialogDescription>
             Update classification fields for {selectedProducts.length} selected products. Only filled fields will be updated.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
+          </DialogDescription>
+        </DialogHeader>
 
         <div className="space-y-6 overflow-visible">
           {/* Form Fields */}
@@ -170,19 +170,19 @@ const BatchEditForm: React.FC<BatchEditFormProps> = ({
           )}
         </div>
 
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
-          <AlertDialogAction
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={isLoading}>Cancel</Button>
+          <Button
             onClick={handleSubmit}
             disabled={Object.keys(formData).length === 0 || isLoading}
             className="flex items-center gap-2"
           >
             <Save className="h-4 w-4" />
             {isLoading ? 'Updating...' : 'Apply Changes'}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 
