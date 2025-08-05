@@ -166,12 +166,12 @@ async function parseCsvFile({ file, expectedHeaders, fileType }) {
       header: true,
       skipEmptyLines: true,
       chunkSize: 1024 * 1024, // 1MB chunks for better memory management
-      chunk: async function(chunk) {
+      chunk: function(chunk) {
         totalRows += chunk.data.length;
         
-        // Process chunk data in smaller batches to avoid blocking
-        const batchSize = 500;
+        // Process chunk data immediately but in smaller batches
         const processedChunk = [];
+        const batchSize = 500;
         
         for (let i = 0; i < chunk.data.length; i += batchSize) {
           const batch = chunk.data.slice(i, i + batchSize);
@@ -203,11 +203,6 @@ async function parseCsvFile({ file, expectedHeaders, fileType }) {
           });
           
           processedChunk.push(...processedBatch);
-          
-          // Yield control every 500 rows
-          if (i + batchSize < chunk.data.length) {
-            await new Promise(resolve => setTimeout(resolve, 0));
-          }
         }
 
         results.push(...processedChunk);

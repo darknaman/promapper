@@ -109,45 +109,43 @@ const FileUpload: React.FC<FileUploadProps> = ({
             isFirstChunk = false;
           }
           
-          // Process in micro-batches to keep UI responsive
-          setTimeout(() => {
-            const processedChunk = chunk.data.map((row: any, index: number) => {
-              if (fileType === 'products') {
-                return {
-                  id: row.id || row.ID || `product-${processedRows + index}`,
-                  title: row.title || row.Title || '',
-                  brand: row.brand || row.Brand || '',
-                  url: row.url || row.URL || '',
-                  category: undefined,
-                  subcategory: undefined,
-                  bigC: undefined,
-                  smallC: undefined,
-                  segment: undefined,
-                  subSegment: undefined
-                };
-              } else {
-                return {
-                  category: row.category || '',
-                  subcategory: row.subcategory || '',
-                  bigC: row.bigC || '',
-                  smallC: row.smallC || '',
-                  segment: row.segment || '',
-                  subSegment: row.subSegment || ''
-                };
-              }
-            });
+          // Process chunk data immediately (no setTimeout wrapper)
+          const processedChunk = chunk.data.map((row: any, index: number) => {
+            if (fileType === 'products') {
+              return {
+                id: row.id || row.ID || `product-${processedRows + index}`,
+                title: row.title || row.Title || '',
+                brand: row.brand || row.Brand || '',
+                url: row.url || row.URL || '',
+                category: undefined,
+                subcategory: undefined,
+                bigC: undefined,
+                smallC: undefined,
+                segment: undefined,
+                subSegment: undefined
+              };
+            } else {
+              return {
+                category: row.category || '',
+                subcategory: row.subcategory || '',
+                bigC: row.bigC || '',
+                smallC: row.smallC || '',
+                segment: row.segment || '',
+                subSegment: row.subSegment || ''
+              };
+            }
+          });
 
-            results.push(...processedChunk);
-            processedRows += chunk.data.length;
+          results.push(...processedChunk);
+          processedRows += chunk.data.length;
 
-            // Throttled progress updates
-            const progress = Math.min(Math.round((processedRows / Math.max(totalRows, processedRows)) * 100), 100);
-            setUploadProgress({
-              progress,
-              processedRows,
-              totalRows: Math.max(totalRows, processedRows)
-            });
-          }, 0);
+          // Throttled progress updates
+          const progress = Math.min(Math.round((processedRows / Math.max(totalRows, processedRows)) * 100), 100);
+          setUploadProgress({
+            progress,
+            processedRows,
+            totalRows: Math.max(totalRows, processedRows)
+          });
         },
         complete: function() {
           console.log('Main thread parsing complete. Total results:', results.length);
