@@ -2,6 +2,8 @@ import React, { memo, useMemo, useCallback } from 'react';
 import { Product, ClassificationLevel, FilterState } from '../types/mapping';
 import { OptimizedHierarchyHelper } from '../utils/optimizedHierarchyHelper';
 import CascadingSelect from './CascadingSelect';
+import { Trash2 } from 'lucide-react';
+import { Button } from './ui/button';
 
 interface OptimizedProductRowProps {
   product: Product;
@@ -55,38 +57,51 @@ const OptimizedProductRow: React.FC<OptimizedProductRowProps> = memo(({
     onProductUpdate(product.id, finalProduct);
   }, [product, hierarchyHelper, onProductUpdate]);
 
+  const clearAllMappings = useCallback(() => {
+    const clearedProduct = {
+      ...product,
+      category: undefined,
+      subcategory: undefined,
+      bigC: undefined,
+      smallC: undefined,
+      segment: undefined,
+      subSegment: undefined
+    };
+    onProductUpdate(product.id, clearedProduct);
+  }, [product, onProductUpdate]);
+
   const isComplete = useMemo(() => 
     classifications.every(level => product[level]), [classifications, product]);
 
   return (
-    <div className={`flex gap-2 p-1 border-b ${isComplete ? 'bg-green-50' : ''}`}>
+    <div className={`grid gap-2 p-1 border-b ${isComplete ? 'bg-green-50' : ''}`} style={{ gridTemplateColumns: 'var(--col-widths, 80px 160px 96px 160px 112px 112px 96px 96px 96px 112px 40px)' }}>
       <input 
-        className="w-20 text-xs p-1 border rounded bg-background text-foreground min-w-16" 
+        className="text-xs p-1 border rounded bg-background text-foreground" 
         value={product.id} 
         onChange={(e) => onProductUpdate(product.id, { ...product, id: e.target.value })}
         title={product.id}
       />
       <input 
-        className="w-40 text-xs p-1 border rounded bg-background text-foreground min-w-32" 
+        className="text-xs p-1 border rounded bg-background text-foreground" 
         value={product.title} 
         onChange={(e) => onProductUpdate(product.id, { ...product, title: e.target.value })}
         title={product.title}
       />
       <input 
-        className="w-24 text-xs p-1 border rounded bg-background text-foreground min-w-20" 
+        className="text-xs p-1 border rounded bg-background text-foreground" 
         value={product.brand || ''} 
         onChange={(e) => onProductUpdate(product.id, { ...product, brand: e.target.value })}
         title={product.brand || ''}
       />
       <input 
-        className="w-40 text-xs p-1 border rounded bg-background text-foreground min-w-32" 
+        className="text-xs p-1 border rounded bg-background text-foreground" 
         value={product.url || ''} 
         onChange={(e) => onProductUpdate(product.id, { ...product, url: e.target.value })}
         title={product.url || ''}
       />
       
       {classifications.map((level) => (
-        <div key={level} className="w-28 min-w-24">
+        <div key={level}>
           <CascadingSelect
             options={hierarchyHelper.getAvailableOptions(level, currentSelections)}
             value={product[level]}
@@ -96,6 +111,16 @@ const OptimizedProductRow: React.FC<OptimizedProductRowProps> = memo(({
           />
         </div>
       ))}
+      
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={clearAllMappings}
+        className="h-8 w-8 p-0 hover:bg-destructive/10"
+        title="Clear all mappings"
+      >
+        <Trash2 className="h-3 w-3 text-destructive" />
+      </Button>
     </div>
   );
 });

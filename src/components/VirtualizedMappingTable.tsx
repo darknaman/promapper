@@ -9,7 +9,7 @@ import { Button } from './ui/button';
 import { Switch } from './ui/switch';
 import { Progress } from './ui/progress';
 import { Badge } from './ui/badge';
-import { Search, Download, Filter } from 'lucide-react';
+import { Search, Download, Filter, Trash2 } from 'lucide-react';
 
 interface VirtualizedMappingTableProps {
   products: Product[];
@@ -173,29 +173,30 @@ const VirtualizedMappingTable: React.FC<VirtualizedMappingTableProps> = ({
       {/* Virtualized table */}
       <Card className="overflow-hidden">
         <div className="border-b bg-muted/30 p-4">
-          <div className="flex gap-2 text-sm font-medium text-foreground">
-            <div className="w-20 flex items-center gap-1 resize-x overflow-hidden min-w-16">
+          <div className="grid gap-2 text-sm font-medium text-foreground" style={{ gridTemplateColumns: 'var(--col-widths, 80px 160px 96px 160px 112px 112px 96px 96px 96px 112px 40px)' }}>
+            <div className="flex items-center gap-1">
               <span>ID</span>
               <input type="checkbox" defaultChecked className="w-3 h-3" title="Enable editing" />
             </div>
-            <div className="w-40 flex items-center gap-1 resize-x overflow-hidden min-w-32">
+            <div className="flex items-center gap-1">
               <span>Title</span>
               <input type="checkbox" defaultChecked className="w-3 h-3" title="Enable editing" />
             </div>
-            <div className="w-24 flex items-center gap-1 resize-x overflow-hidden min-w-20">
+            <div className="flex items-center gap-1">
               <span>Brand</span>
               <input type="checkbox" defaultChecked className="w-3 h-3" title="Enable editing" />
             </div>
-            <div className="w-40 flex items-center gap-1 resize-x overflow-hidden min-w-32">
+            <div className="flex items-center gap-1">
               <span>URL</span>
               <input type="checkbox" defaultChecked className="w-3 h-3" title="Enable editing" />
             </div>
-            <div className="w-28 resize-x overflow-hidden min-w-24">Category</div>
-            <div className="w-28 resize-x overflow-hidden min-w-24">Subcategory</div>
-            <div className="w-24 resize-x overflow-hidden min-w-20">Big C</div>
-            <div className="w-24 resize-x overflow-hidden min-w-20">Small C</div>
-            <div className="w-24 resize-x overflow-hidden min-w-20">Segment</div>
-            <div className="w-28 resize-x overflow-hidden min-w-24">Sub-segment</div>
+            <div>Category</div>
+            <div>Subcategory</div>
+            <div>Big C</div>
+            <div>Small C</div>
+            <div>Segment</div>
+            <div>Sub-segment</div>
+            <div>Clear</div>
           </div>
         </div>
         
