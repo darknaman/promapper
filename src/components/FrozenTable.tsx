@@ -69,6 +69,15 @@ const FrozenTable: React.FC<FrozenTableProps> = ({
   }, [layout]);
 
   const allColumns = [...frozenColumns, ...scrollableColumns];
+  
+  // Memoize checkbox states to prevent infinite re-renders
+  const isAllSelected = useMemo(() => {
+    return selectedProducts.size === products.length && products.length > 0;
+  }, [selectedProducts.size, products.length]);
+  
+  const isIndeterminate = useMemo(() => {
+    return selectedProducts.size > 0 && selectedProducts.size < products.length;
+  }, [selectedProducts.size, products.length]);
 
   const getColumnWidth = useCallback((columnIndex: number) => {
     if (columnIndex >= allColumns.length) {
@@ -107,7 +116,7 @@ const FrozenTable: React.FC<FrozenTableProps> = ({
     document.addEventListener('mouseup', handleMouseUp);
   }, [layout, onColumnResize]);
 
-  const HeaderCell = useCallback(({ column, isLast }: { column: ColumnConfig; isLast: boolean }) => (
+  const HeaderCell = React.memo(({ column, isLast }: { column: ColumnConfig; isLast: boolean }) => (
     <div 
       className="flex items-center justify-between h-full px-2 text-sm font-medium relative group border-r"
       style={{ width: column.width }}
@@ -115,7 +124,8 @@ const FrozenTable: React.FC<FrozenTableProps> = ({
       <div className="flex items-center gap-2">
         {column.key === 'id' && (
           <Checkbox
-            checked={selectedProducts.size === products.length && products.length > 0}
+            checked={isAllSelected}
+            ref={undefined}
             onCheckedChange={onSelectAll}
             className="h-4 w-4"
           />
@@ -131,9 +141,9 @@ const FrozenTable: React.FC<FrozenTableProps> = ({
         />
       )}
     </div>
-  ), [selectedProducts.size, products.length, onSelectAll, handleResizeStart]);
+  ));
 
-  const Cell = useCallback(({ columnIndex, rowIndex, style }: any) => {
+  const Cell = React.memo(({ columnIndex, rowIndex, style }: any) => {
     const product = products[rowIndex];
     const column = allColumns[columnIndex];
     
@@ -195,6 +205,7 @@ const FrozenTable: React.FC<FrozenTableProps> = ({
         <div style={cellStyle} className="flex items-center gap-2 px-2">
           <Checkbox
             checked={selectedProducts.has(product.id)}
+            ref={undefined}
             onCheckedChange={(checked) => onProductSelect(product.id, !!checked)}
             className="h-4 w-4 shrink-0"
           />
@@ -293,7 +304,7 @@ const FrozenTable: React.FC<FrozenTableProps> = ({
     }
 
     return <div style={cellStyle} />;
-  }, [products, allColumns, selectedProducts, onProductSelect, onProductUpdate, hierarchyHelper, editingCell]);
+  });
 
   const handleScroll = useCallback(({ scrollLeft }: any) => {
     if (headerRef.current && scrollableRef.current) {
