@@ -2,7 +2,8 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { Product, HierarchyRule } from '../types/mapping';
 import { OptimizedHierarchyHelper } from '../utils/optimizedHierarchyHelper';
 import FileUpload from '../components/FileUpload';
-import VirtualizedMappingTable from '../components/VirtualizedMappingTable';
+import ProductHierarchyMappingTable from '../components/ProductHierarchyMappingTable';
+import { RowData } from '../types/productTable';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -370,6 +371,68 @@ const Index = () => {
     }).length;
   }, [products]);
 
+  // Convert Product[] to RowData[] for new table
+  const tableRows = useMemo((): RowData[] => {
+    return products.map(product => ({
+      id: product.id,
+      name: product.title,
+      sku: product.id, // Use ID as SKU for now
+      brand: product.brand || '',
+      hierarchy: {
+        level1: product.category,
+        level2: product.subcategory,
+        level3: product.bigC
+      }
+    }));
+  }, [products]);
+
+  // Convert hierarchy rules to options for new table
+  const hierarchyOptions = useMemo(() => {
+    const level1Options = Array.from(new Set(hierarchyRules.map(rule => rule.category).filter(Boolean)))
+      .map(category => ({ value: category, label: category }));
+    
+    const level2Options = Array.from(new Set(hierarchyRules.map(rule => rule.subcategory).filter(Boolean)))
+      .map(subcategory => ({ value: subcategory, label: subcategory }));
+    
+    const level3Options = Array.from(new Set(hierarchyRules.map(rule => rule.bigC).filter(Boolean)))
+      .map(bigC => ({ value: bigC, label: bigC }));
+
+    return {
+      level1: level1Options,
+      level2: level2Options,
+      level3: level3Options
+    };
+  }, [hierarchyRules]);
+
+  const handleRowsChange = useCallback((updatedRows: RowData[]) => {
+    const updatedProducts = updatedRows.map(row => {
+      const originalProduct = products.find(p => p.id === row.id);
+      return {
+        ...originalProduct!,
+        id: row.id,
+        title: row.name,
+        brand: row.brand,
+        category: row.hierarchy?.level1,
+        subcategory: row.hierarchy?.level2,
+        bigC: row.hierarchy?.level3,
+        // Keep other hierarchy levels from original
+        smallC: originalProduct?.smallC,
+        segment: originalProduct?.segment,
+        subSegment: originalProduct?.subSegment
+      };
+    });
+    setProducts(updatedProducts);
+  }, [products]);
+
+  const handleDeleteRow = useCallback((rowId: string) => {
+    setProducts(prev => prev.filter(product => product.id !== rowId));
+  }, []);
+
+  const handleSelectRows = useCallback((rowIds: string[]) => {
+    // Handle row selection if needed
+    console.log('Selected rows:', rowIds);
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-data">
       <div className="container mx-auto px-4 py-8">
@@ -384,7 +447,11 @@ const Index = () => {
                 Product Classification Mapping Tool
               </h1>
             </div>
-            <div className="w-20"></div> {/* Spacer for balance */}
+            <div className="w-20 flex justify-end">
+              <Button variant="outline" size="sm" asChild>
+                <a href="/demo">View Demo</a>
+              </Button>
+            </div>
           </div>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto text-center">
             Map product titles to hierarchical categories using cascading dropdowns. 
@@ -567,11 +634,12 @@ const Index = () => {
 
         {/* Mapping Interface */}
         {products.length > 0 && hierarchyRules.length > 0 ? (
-          <VirtualizedMappingTable
-            products={products}
-            hierarchyHelper={hierarchyHelper}
-            onProductUpdate={handleProductUpdate}
-            onExport={handleExport}
+          <ProductHierarchyMappingTable
+            rows={tableRows}
+            hierarchyOptions={hierarchyOptions}
+            onRowsChange={handleRowsChange}
+            onDeleteRow={handleDeleteRow}
+            onSelectRows={handleSelectRows}
           />
         ) : (
           <Card className="p-12 text-center">

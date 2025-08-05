@@ -178,3 +178,17 @@ div[class*="react-select__menu"] {
   z-index: 9999 !important;
   position: fixed !important;
 }
+
+/* Mapping Table Styles */
+.mapping-table-container {
+  height: 100%;
+  width: 100%;
+}
+
+.deleteColumn {
+  position: sticky;
+  right: 0;
+  background: hsl(var(--background));
+  z-index: 3;
+  min-width: 60px;
+}
