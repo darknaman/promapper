@@ -25,14 +25,12 @@ const CascadingSelect: React.FC<CascadingSelectProps> = ({
     control: (provided: any, state: any) => ({
       ...provided,
       minHeight: '32px',
-      border: '1px solid hsl(var(--border))',
+      border: '1px solid #d1d5db',
       borderRadius: '4px',
-      backgroundColor: isDisabled ? 'hsl(var(--muted))' : 'hsl(var(--background))',
+      backgroundColor: isDisabled ? '#f3f4f6' : '#ffffff',
       boxShadow: 'none',
-      width: 'auto',
-      minWidth: '120px',
       '&:hover': {
-        borderColor: 'hsl(var(--ring))'
+        borderColor: '#9ca3af'
       }
     }),
     option: (provided: any, state: any) => ({
@@ -56,8 +54,8 @@ const CascadingSelect: React.FC<CascadingSelectProps> = ({
       backgroundColor: 'hsl(var(--popover))',
       border: '1px solid hsl(var(--border))',
       borderRadius: '6px',
-      boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-      zIndex: 999999
+      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+      zIndex: 99999
     }),
     menuList: (provided: any) => ({
       ...provided,
@@ -99,11 +97,9 @@ const CascadingSelect: React.FC<CascadingSelectProps> = ({
         isSearchable
         styles={customStyles}
         menuPortalTarget={document.body}
-        menuPosition="fixed"
+        menuPosition="absolute"
         menuPlacement="auto"
         noOptionsMessage={() => "No options available"}
-        className="react-select-container"
-        classNamePrefix="react-select"
       />
     </div>
   );

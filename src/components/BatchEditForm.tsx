@@ -33,16 +33,11 @@ const BatchEditForm: React.FC<BatchEditFormProps> = ({
   const classifications: ClassificationLevel[] = ['category', 'subcategory', 'bigC', 'smallC', 'segment', 'subSegment'];
 
   const handleFieldChange = useCallback((level: ClassificationLevel, value: string | null) => {
-    const newFormData = {
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       [level]: value || undefined
-    };
-
-    // Auto-complete selections based on hierarchy
-    const autoCompletedSelections = hierarchyHelper.autoCompleteSelections(newFormData);
-    
-    setFormData(autoCompletedSelections);
-  }, [formData, hierarchyHelper]);
+    }));
+  }, []);
 
   const handleClearField = useCallback((level: ClassificationLevel) => {
     setFormData(prev => {
@@ -92,7 +87,7 @@ const BatchEditForm: React.FC<BatchEditFormProps> = ({
 
   return (
     <AlertDialog open={isOpen} onOpenChange={onClose}>
-      <AlertDialogContent className="max-w-4xl max-h-[80vh] overflow-auto" style={{ zIndex: 100 }}>
+      <AlertDialogContent className="max-w-4xl max-h-[80vh] overflow-auto">
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center justify-between">
             <span>Batch Edit Products</span>
@@ -121,15 +116,13 @@ const BatchEditForm: React.FC<BatchEditFormProps> = ({
                     </Button>
                   )}
                 </div>
-                <div style={{ position: 'relative', zIndex: 999999 }}>
-                  <CascadingSelect
-                    options={hierarchyHelper.getAvailableOptions(level, formData)}
-                    value={formData[level]}
-                    onChange={(value) => handleFieldChange(level, value)}
-                    placeholder={`Select ${level}...`}
-                    className="h-10"
-                  />
-                </div>
+                <CascadingSelect
+                  options={hierarchyHelper.getAvailableOptions(level, formData)}
+                  value={formData[level]}
+                  onChange={(value) => handleFieldChange(level, value)}
+                  placeholder={`Select ${level}...`}
+                  className="h-10"
+                />
               </div>
             ))}
           </div>

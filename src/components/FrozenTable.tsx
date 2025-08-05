@@ -70,9 +70,6 @@ const FrozenTable: React.FC<FrozenTableProps> = ({
   const allColumns = [...frozenColumns, ...scrollableColumns];
 
   const getColumnWidth = useCallback((columnIndex: number) => {
-    if (columnIndex >= allColumns.length) {
-      return 60; // Clear column width
-    }
     return allColumns[columnIndex]?.width || 100;
   }, [allColumns]);
 
@@ -93,11 +90,6 @@ const FrozenTable: React.FC<FrozenTableProps> = ({
         startWidth + deltaX
       );
       onColumnResize(columnKey, newWidth);
-      
-      // Force grid re-render
-      if (gridRef.current) {
-        gridRef.current.resetAfterColumnIndex(0, true);
-      }
     };
 
     const handleMouseUp = () => {
@@ -105,11 +97,6 @@ const FrozenTable: React.FC<FrozenTableProps> = ({
       setResizeColumn(null);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
-      
-      // Final grid re-render
-      if (gridRef.current) {
-        gridRef.current.resetAfterColumnIndex(0, true);
-      }
     };
 
     document.addEventListener('mousemove', handleMouseMove);
@@ -146,48 +133,7 @@ const FrozenTable: React.FC<FrozenTableProps> = ({
     const product = products[rowIndex];
     const column = allColumns[columnIndex];
     
-    if (!product) return null;
-
-    // Handle clear button column (last column)
-    if (columnIndex === allColumns.length) {
-
-      const cellStyle = {
-        ...style,
-        borderRight: '1px solid hsl(var(--border))',
-        borderBottom: '1px solid hsl(var(--border))',
-        backgroundColor: 'hsl(var(--card))',
-        zIndex: 1,
-      };
-
-      const clearAllMappings = () => {
-        const clearedProduct = {
-          ...product,
-          category: undefined,
-          subcategory: undefined,
-          bigC: undefined,
-          smallC: undefined,
-          segment: undefined,
-          subSegment: undefined
-        };
-        onProductUpdate(product.id, clearedProduct);
-      };
-
-      return (
-        <div style={cellStyle} className="flex items-center justify-center px-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearAllMappings}
-            className="h-6 w-6 p-0 hover:bg-destructive/10"
-            title="Clear all mappings"
-          >
-            <Trash2 className="h-3 w-3 text-destructive" />
-          </Button>
-        </div>
-      );
-    }
-
-    if (!column) return null;
+    if (!product || !column) return null;
 
     const isFrozen = column.frozen;
     const cellStyle = {
@@ -268,15 +214,43 @@ const FrozenTable: React.FC<FrozenTableProps> = ({
 
       return (
         <div style={cellStyle} className="flex items-center px-1">
-          <div style={{ width: '100%', minWidth: '120px' }}>
-            <CascadingSelect
-              options={hierarchyHelper.getAvailableOptions(column.key as any, currentSelections)}
-              value={product[column.key as keyof Product] as string}
-              onChange={handleClassificationChange}
-              placeholder=""
-              className="h-8 text-xs"
-            />
-          </div>
+          <CascadingSelect
+            options={hierarchyHelper.getAvailableOptions(column.key as any, currentSelections)}
+            value={product[column.key as keyof Product] as string}
+            onChange={handleClassificationChange}
+            placeholder=""
+            className="h-8 text-xs"
+          />
+        </div>
+      );
+    }
+
+    // Clear button column
+    if (column.key === 'clear') {
+      const clearAllMappings = () => {
+        const clearedProduct = {
+          ...product,
+          category: undefined,
+          subcategory: undefined,
+          bigC: undefined,
+          smallC: undefined,
+          segment: undefined,
+          subSegment: undefined
+        };
+        onProductUpdate(product.id, clearedProduct);
+      };
+
+      return (
+        <div style={cellStyle} className="flex items-center justify-center px-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearAllMappings}
+            className="h-6 w-6 p-0 hover:bg-destructive/10"
+            title="Clear all mappings"
+          >
+            <Trash2 className="h-3 w-3 text-destructive" />
+          </Button>
         </div>
       );
     }
