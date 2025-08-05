@@ -54,9 +54,12 @@ const CascadingSelect: React.FC<CascadingSelectProps> = ({
       backgroundColor: 'hsl(var(--popover))',
       border: '1px solid hsl(var(--border))',
       borderRadius: '6px',
-      boxShadow: 'var(--shadow-card)',
-      zIndex: 9999,
-      position: 'fixed'
+      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+      zIndex: 9999
+    }),
+    menuPortal: (provided: any) => ({
+      ...provided,
+      zIndex: 9999
     }),
     menuList: (provided: any) => ({
       ...provided,
@@ -87,7 +90,7 @@ const CascadingSelect: React.FC<CascadingSelectProps> = ({
   };
 
   return (
-    <div className={className}>
+    <div className={`${className} batch-edit-dropdown relative`}>
       <Select
         options={options}
         value={selectedOption}
@@ -98,8 +101,11 @@ const CascadingSelect: React.FC<CascadingSelectProps> = ({
         isSearchable
         styles={customStyles}
         menuPortalTarget={document.body}
-        menuPosition="absolute"
+        menuPosition="fixed"
+        menuPlacement="auto"
+        menuShouldBlockScroll={false}
         menuShouldScrollIntoView={false}
+        closeMenuOnScroll={false}
         noOptionsMessage={() => "No options available"}
       />
     </div>

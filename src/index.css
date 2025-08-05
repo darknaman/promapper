@@ -161,3 +161,20 @@ All colors MUST be HSL.
 div[data-radix-popper-content-wrapper] {
   z-index: 10000 !important;
 }
+
+/* Batch edit dialog specific fixes */
+.batch-edit-dropdown {
+  position: relative !important;
+  z-index: 9999 !important;
+}
+
+/* Ensure dialog content allows overflow for dropdowns */
+[data-radix-dialog-content] {
+  overflow: visible !important;
+}
+
+/* React-select specific overrides for visibility */
+div[class*="react-select__menu"] {
+  z-index: 9999 !important;
+  position: fixed !important;
+}
