@@ -37,35 +37,45 @@ const ProductRow: React.FC<ProductRowProps> = memo(({
   }, [product, onProductUpdate]);
 
   const handleClassificationChange = useCallback((level: ClassificationLevel, value: string | null) => {
-    let updatedProduct = { ...product, [level]: value || undefined };
-    
-    // Clear invalid selections and auto-complete
-    const newSelections = {
-      category: updatedProduct.category,
-      subcategory: updatedProduct.subcategory,
-      bigC: updatedProduct.bigC,
-      smallC: updatedProduct.smallC,
-      segment: updatedProduct.segment,
-      subSegment: updatedProduct.subSegment
+    // Use requestIdleCallback for better performance on large datasets
+    const performUpdate = () => {
+      let updatedProduct = { ...product, [level]: value || undefined };
+      
+      // Clear invalid selections and auto-complete
+      const newSelections = {
+        category: updatedProduct.category,
+        subcategory: updatedProduct.subcategory,
+        bigC: updatedProduct.bigC,
+        smallC: updatedProduct.smallC,
+        segment: updatedProduct.segment,
+        subSegment: updatedProduct.subSegment
+      };
+
+      // Clear invalid selections
+      const clearedSelections = hierarchyHelper.clearInvalidSelections(newSelections, level);
+      
+      // Auto-complete when possible
+      const autoCompletedSelections = hierarchyHelper.autoCompleteSelections(clearedSelections);
+
+      updatedProduct = {
+        ...updatedProduct,
+        category: autoCompletedSelections.category,
+        subcategory: autoCompletedSelections.subcategory,
+        bigC: autoCompletedSelections.bigC,
+        smallC: autoCompletedSelections.smallC,
+        segment: autoCompletedSelections.segment,
+        subSegment: autoCompletedSelections.subSegment
+      };
+
+      onProductUpdate(product.id, updatedProduct);
     };
 
-    // Clear invalid selections
-    const clearedSelections = hierarchyHelper.clearInvalidSelections(newSelections, level);
-    
-    // Auto-complete when possible
-    const autoCompletedSelections = hierarchyHelper.autoCompleteSelections(clearedSelections);
-
-    updatedProduct = {
-      ...updatedProduct,
-      category: autoCompletedSelections.category,
-      subcategory: autoCompletedSelections.subcategory,
-      bigC: autoCompletedSelections.bigC,
-      smallC: autoCompletedSelections.smallC,
-      segment: autoCompletedSelections.segment,
-      subSegment: autoCompletedSelections.subSegment
-    };
-
-    onProductUpdate(product.id, updatedProduct);
+    // Use requestIdleCallback for better performance, fallback to direct call
+    if (typeof requestIdleCallback !== 'undefined') {
+      requestIdleCallback(performUpdate);
+    } else {
+      performUpdate();
+    }
   }, [product, hierarchyHelper, onProductUpdate]);
 
   const getOptionsForLevel = useCallback((level: ClassificationLevel) => {

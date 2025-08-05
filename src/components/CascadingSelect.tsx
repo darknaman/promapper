@@ -24,13 +24,13 @@ const CascadingSelect: React.FC<CascadingSelectProps> = ({
   const customStyles = {
     control: (provided: any, state: any) => ({
       ...provided,
-      minHeight: '38px',
-      border: '1px solid hsl(var(--border))',
-      borderRadius: '6px',
-      backgroundColor: isDisabled ? 'hsl(var(--muted))' : 'hsl(var(--background))',
-      boxShadow: state.isFocused ? '0 0 0 2px hsl(var(--ring))' : 'none',
+      minHeight: '32px',
+      border: '1px solid #d1d5db',
+      borderRadius: '4px',
+      backgroundColor: isDisabled ? '#f3f4f6' : '#ffffff',
+      boxShadow: 'none',
       '&:hover': {
-        borderColor: state.isFocused ? 'hsl(var(--ring))' : 'hsl(var(--border))'
+        borderColor: '#9ca3af'
       }
     }),
     option: (provided: any, state: any) => ({
@@ -99,6 +99,27 @@ const CascadingSelect: React.FC<CascadingSelectProps> = ({
         menuPortalTarget={document.body}
         menuPosition="fixed"
         noOptionsMessage={() => "No options available"}
+        components={{
+          ClearIndicator: ({ innerProps, clearValue }) => (
+            <div
+              {...innerProps}
+              style={{
+                color: 'hsl(var(--muted-foreground))',
+                cursor: 'pointer',
+                padding: '0 8px',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                clearValue();
+                onChange(null);
+              }}
+            >
+              ✕
+            </div>
+          )
+        }}
       />
     </div>
   );

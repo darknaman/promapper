@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { FixedSizeList as List } from 'react-window';
 import { Product } from '../types/mapping';
 import { OptimizedHierarchyHelper } from '../utils/optimizedHierarchyHelper';
-import ProductRow from './ProductRow';
+import OptimizedProductRow from './OptimizedProductRow';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
@@ -18,7 +18,7 @@ interface VirtualizedMappingTableProps {
   onExport: () => void;
 }
 
-const ROW_HEIGHT = 60;
+const ROW_HEIGHT = 48; // Reduced for better performance
 
 const VirtualizedMappingTable: React.FC<VirtualizedMappingTableProps> = ({
   products,
@@ -28,20 +28,33 @@ const VirtualizedMappingTable: React.FC<VirtualizedMappingTableProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showOnlyIncomplete, setShowOnlyIncomplete] = useState(false);
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+
+  // Debounce search to prevent UI freezing
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   const filteredProducts = useMemo(() => {
-    // For large datasets, optimize filtering
-    if (products.length > 5000) {
-      const searchLower = searchTerm.toLowerCase();
-      const levels = ['category', 'subcategory', 'bigC', 'smallC', 'segment', 'subSegment'];
+    // Early return for empty search
+    if (!debouncedSearchTerm && !showOnlyIncomplete) return products;
+    
+    const searchLower = debouncedSearchTerm.toLowerCase();
+    const levels = ['category', 'subcategory', 'bigC', 'smallC', 'segment', 'subSegment'];
+    const result: Product[] = [];
+    
+    // Process in chunks to prevent UI blocking
+    const chunkSize = Math.min(1000, products.length);
+    
+    for (let i = 0; i < products.length; i += chunkSize) {
+      const chunk = products.slice(i, i + chunkSize);
       
-      const result: Product[] = [];
-      
-      for (let i = 0; i < products.length; i++) {
-        const product = products[i];
-        
+      for (const product of chunk) {
         // Fast search check
-        const matchesSearch = !searchTerm || 
+        const matchesSearch = !debouncedSearchTerm || 
           product.title.toLowerCase().includes(searchLower) ||
           (product.brand && product.brand.toLowerCase().includes(searchLower)) ||
           product.id.toLowerCase().includes(searchLower);
@@ -62,27 +75,10 @@ const VirtualizedMappingTable: React.FC<VirtualizedMappingTableProps> = ({
 
         result.push(product);
       }
-      
-      return result;
     }
     
-    // For smaller datasets, use regular filter
-    return products.filter(product => {
-      const matchesSearch = !searchTerm || 
-        product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.brand?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.id.toLowerCase().includes(searchTerm.toLowerCase());
-
-      if (!matchesSearch) return false;
-
-      if (showOnlyIncomplete) {
-        const levels = ['category', 'subcategory', 'bigC', 'smallC', 'segment', 'subSegment'];
-        return !levels.every(level => product[level as keyof Product]);
-      }
-
-      return true;
-    });
-  }, [products, searchTerm, showOnlyIncomplete]);
+    return result;
+  }, [products, debouncedSearchTerm, showOnlyIncomplete]);
 
   const completedCount = useMemo(() => {
     return products.filter(product => {
@@ -97,11 +93,10 @@ const VirtualizedMappingTable: React.FC<VirtualizedMappingTableProps> = ({
     const product = filteredProducts[index];
     return (
       <div style={style}>
-        <ProductRow
+        <OptimizedProductRow
           product={product}
           hierarchyHelper={hierarchyHelper}
           onProductUpdate={onProductUpdate}
-          isEven={index % 2 === 0}
         />
       </div>
     );

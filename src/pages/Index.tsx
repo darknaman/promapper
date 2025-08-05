@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { Product, HierarchyRule } from '../types/mapping';
 import { OptimizedHierarchyHelper } from '../utils/optimizedHierarchyHelper';
 import FileUpload from '../components/FileUpload';
-import ResizableTable from '../components/ResizableTable';
+import VirtualizedMappingTable from '../components/VirtualizedMappingTable';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -69,47 +69,16 @@ const Index = () => {
 
   const handleProductsUpload = useCallback(async (data: any[], fileName: string) => {
     try {
-      // Use requestIdleCallback for large datasets to avoid blocking
-      if (data.length > 5000) {
-        // Process in smaller chunks using requestIdleCallback
-        const processedProducts: Product[] = [];
-        const chunkSize = 1000;
+      // Always use chunked processing to prevent UI freezing
+      const processedProducts: Product[] = [];
+      const chunkSize = Math.min(500, data.length); // Smaller chunks for better performance
+      
+      for (let i = 0; i < data.length; i += chunkSize) {
+        const chunk = data.slice(i, i + chunkSize);
         
-        for (let i = 0; i < data.length; i += chunkSize) {
-          const chunk = data.slice(i, i + chunkSize);
-          
-          // Process chunk
-          const processedChunk = chunk.map((row, index) => ({
-            id: row.id || row.ID || `product-${i + index}`,
-            title: row.title || row.Title || '',
-            brand: row.brand || row.Brand || '',
-            url: row.url || row.URL || '',
-            category: undefined,
-            subcategory: undefined,
-            bigC: undefined,
-            smallC: undefined,
-            segment: undefined,
-            subSegment: undefined
-          }));
-          
-          processedProducts.push(...processedChunk);
-          
-          // Use requestIdleCallback for better performance, fallback to setTimeout
-          await new Promise<void>(resolve => {
-            if (typeof requestIdleCallback !== 'undefined') {
-              requestIdleCallback(() => resolve());
-            } else {
-              setTimeout(() => resolve(), 0);
-            }
-          });
-        }
-        
-        // Update state in one go to minimize re-renders
-        setProducts(processedProducts);
-      } else {
-        // For smaller datasets, process normally
-        const processedProducts: Product[] = data.map((row, index) => ({
-          id: row.id || row.ID || `product-${index}`,
+        // Process chunk synchronously but yield control
+        const processedChunk = chunk.map((row, index) => ({
+          id: row.id || row.ID || `product-${i + index}`,
           title: row.title || row.Title || '',
           brand: row.brand || row.Brand || '',
           url: row.url || row.URL || '',
@@ -121,9 +90,22 @@ const Index = () => {
           subSegment: undefined
         }));
         
-        setProducts(processedProducts);
+        processedProducts.push(...processedChunk);
+        
+        // Yield control to keep UI responsive
+        if (i + chunkSize < data.length) {
+          await new Promise<void>(resolve => {
+            if (typeof requestIdleCallback !== 'undefined') {
+              requestIdleCallback(() => resolve(), { timeout: 50 });
+            } else {
+              setTimeout(() => resolve(), 10);
+            }
+          });
+        }
       }
       
+      // Update state in one go to minimize re-renders
+      setProducts(processedProducts);
       setProductsFileName(fileName);
       
       toast({
@@ -585,7 +567,7 @@ const Index = () => {
 
         {/* Mapping Interface */}
         {products.length > 0 && hierarchyRules.length > 0 ? (
-          <ResizableTable
+          <VirtualizedMappingTable
             products={products}
             hierarchyHelper={hierarchyHelper}
             onProductUpdate={handleProductUpdate}

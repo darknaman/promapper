@@ -96,56 +96,67 @@ const FileUpload: React.FC<FileUploadProps> = ({
       let totalRows = 0;
       let processedRows = 0;
       let isFirstChunk = true;
+      let lastProgressUpdate = 0;
 
       Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
-        chunkSize: 1024 * 512, // 512KB chunks for better performance
+        chunkSize: 1024 * 256, // Smaller chunks for better responsiveness
         chunk: function(chunk) {
           if (isFirstChunk) {
             // Better estimation for total rows
-            const bytesPerRow = file.size / chunk.data.length;
-            totalRows = Math.round(file.size / bytesPerRow);
+            const avgRowSize = file.size / chunk.data.length;
+            totalRows = Math.round(file.size / avgRowSize);
             isFirstChunk = false;
           }
           
-          // Process chunk data immediately (no setTimeout wrapper)
-          const processedChunk = chunk.data.map((row: any, index: number) => {
-            if (fileType === 'products') {
-              return {
-                id: row.id || row.ID || `product-${processedRows + index}`,
-                title: row.title || row.Title || '',
-                brand: row.brand || row.Brand || '',
-                url: row.url || row.URL || '',
-                category: undefined,
-                subcategory: undefined,
-                bigC: undefined,
-                smallC: undefined,
-                segment: undefined,
-                subSegment: undefined
-              };
-            } else {
-              return {
-                category: row.category || '',
-                subcategory: row.subcategory || '',
-                bigC: row.bigC || '',
-                smallC: row.smallC || '',
-                segment: row.segment || '',
-                subSegment: row.subSegment || ''
-              };
-            }
-          });
-
-          results.push(...processedChunk);
+          // Process chunk data in smaller batches
+          const batchSize = 100;
+          for (let i = 0; i < chunk.data.length; i += batchSize) {
+            const batch = chunk.data.slice(i, i + batchSize);
+            
+            const processedBatch = batch.map((row: any, index: number) => {
+              if (fileType === 'products') {
+                return {
+                  id: row.id || row.ID || `product-${processedRows + i + index}`,
+                  title: row.title || row.Title || '',
+                  brand: row.brand || row.Brand || '',
+                  url: row.url || row.URL || '',
+                  category: undefined,
+                  subcategory: undefined,
+                  bigC: undefined,
+                  smallC: undefined,
+                  segment: undefined,
+                  subSegment: undefined
+                };
+              } else {
+                return {
+                  category: row.category || '',
+                  subcategory: row.subcategory || '',
+                  bigC: row.bigC || '',
+                  smallC: row.smallC || '',
+                  segment: row.segment || '',
+                  subSegment: row.subSegment || ''
+                };
+              }
+            });
+            
+            results.push(...processedBatch);
+          }
+          
           processedRows += chunk.data.length;
 
-          // Throttled progress updates
-          const progress = Math.min(Math.round((processedRows / Math.max(totalRows, processedRows)) * 100), 100);
-          setUploadProgress({
-            progress,
-            processedRows,
-            totalRows: Math.max(totalRows, processedRows)
-          });
+          // Throttled progress updates (every 100ms)
+          const now = Date.now();
+          if (now - lastProgressUpdate > 100) {
+            const progress = Math.min(Math.round((processedRows / Math.max(totalRows, processedRows)) * 100), 100);
+            setUploadProgress({
+              progress,
+              processedRows,
+              totalRows: Math.max(totalRows, processedRows)
+            });
+            lastProgressUpdate = now;
+          }
         },
         complete: function() {
           console.log('Main thread parsing complete. Total results:', results.length);
