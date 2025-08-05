@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { VariableSizeGrid as Grid } from 'react-window';
 import { Checkbox } from './ui/checkbox';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -8,20 +7,6 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Trash2, Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { RowData, ProductHierarchyMappingTableProps, BatchEditToolbarProps } from '../types/productTable';
-
-const COLUMN_WIDTHS = {
-  checkbox: 50,
-  name: 200,
-  sku: 150,
-  brand: 150,
-  level1: 180,
-  level2: 180,
-  level3: 180,
-  delete: 60
-};
-
-const ROW_HEIGHT = 50;
-const HEADER_HEIGHT = 50;
 
 const BatchEditToolbar: React.FC<BatchEditToolbarProps> = ({
   selectedRowCount,
@@ -51,9 +36,9 @@ const BatchEditToolbar: React.FC<BatchEditToolbarProps> = ({
         className="px-3 py-1 border rounded text-sm"
       >
         <option value="">Select Level</option>
-        <option value="level1">Level 1</option>
-        <option value="level2">Level 2</option>
-        <option value="level3">Level 3</option>
+        <option value="level1">Category</option>
+        <option value="level2">Subcategory</option>
+        <option value="level3">Big C</option>
       </select>
 
       <select 
@@ -108,13 +93,13 @@ const AutocompleteCell: React.FC<{
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between h-8 text-xs"
+          className="w-full justify-between h-8 text-xs border-input bg-background hover:bg-accent hover:text-accent-foreground"
         >
           {selectedOption?.label || placeholder}
           <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[200px] p-0" side="bottom" align="start">
+      <PopoverContent className="w-[200px] p-0 bg-popover border border-border z-50" side="bottom" align="start">
         <Command>
           <CommandInput 
             placeholder={`Search ${placeholder.toLowerCase()}...`}
@@ -214,109 +199,6 @@ const EditableCell: React.FC<{
   );
 };
 
-const Cell: React.FC<{
-  columnIndex: number;
-  rowIndex: number;
-  style: React.CSSProperties;
-  data: any;
-}> = ({ columnIndex, rowIndex, style, data }) => {
-  const { 
-    rows, 
-    selectedRows, 
-    onRowSelect, 
-    onRowUpdate, 
-    onDeleteRow, 
-    hierarchyOptions,
-    columns 
-  } = data;
-  
-  const row = rows[rowIndex];
-  const column = columns[columnIndex];
-  
-  if (!row || !column) return null;
-
-  const cellStyle: React.CSSProperties = {
-    ...style,
-    display: 'flex',
-    alignItems: 'center',
-    padding: '0 8px',
-    borderBottom: '1px solid hsl(var(--border))',
-    borderRight: '1px solid hsl(var(--border))',
-    backgroundColor: column.key === 'delete' ? 'hsl(var(--background))' : 'hsl(var(--card))',
-    position: (column.key === 'delete' ? 'sticky' : 'relative') as 'sticky' | 'relative',
-    right: column.key === 'delete' ? 0 : 'auto',
-    zIndex: column.key === 'delete' ? 3 : 1,
-  };
-
-  const handleUpdate = (field: string, value: any) => {
-    const updatedRow = { ...row };
-    if (field.startsWith('hierarchy.')) {
-      const hierarchyField = field.split('.')[1];
-      updatedRow.hierarchy = { ...updatedRow.hierarchy, [hierarchyField]: value };
-    } else {
-      updatedRow[field] = value;
-    }
-    onRowUpdate(updatedRow);
-  };
-
-  switch (column.key) {
-    case 'checkbox':
-      return (
-        <div style={cellStyle}>
-          <Checkbox
-            checked={selectedRows.has(row.id)}
-            onCheckedChange={(checked) => onRowSelect(row.id, !!checked)}
-            aria-label={`Select row ${row.id}`}
-          />
-        </div>
-      );
-
-    case 'name':
-    case 'sku':
-    case 'brand':
-      return (
-        <div style={cellStyle}>
-          <EditableCell
-            value={row[column.key] || ''}
-            onChange={(value) => handleUpdate(column.key, value)}
-          />
-        </div>
-      );
-
-    case 'level1':
-    case 'level2':
-    case 'level3':
-      return (
-        <div style={cellStyle}>
-          <AutocompleteCell
-            value={row.hierarchy?.[column.key] || ''}
-            options={hierarchyOptions[column.key] || []}
-            onChange={(value) => handleUpdate(`hierarchy.${column.key}`, value)}
-            placeholder={`Select ${column.key}`}
-          />
-        </div>
-      );
-
-    case 'delete':
-      return (
-        <div style={cellStyle} className="justify-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onDeleteRow(row.id)}
-            className="h-8 w-8 p-0 hover:bg-destructive/10"
-            aria-label={`Delete row ${row.id}`}
-          >
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
-        </div>
-      );
-
-    default:
-      return <div style={cellStyle} />;
-  }
-};
-
 const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> = ({
   rows,
   hierarchyOptions,
@@ -326,23 +208,19 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
   validateProductField
 }) => {
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
-  const gridRef = useRef<any>(null);
 
   const columns = [
-    { key: 'checkbox', label: '', width: COLUMN_WIDTHS.checkbox },
-    { key: 'name', label: 'Name', width: COLUMN_WIDTHS.name },
-    { key: 'sku', label: 'SKU', width: COLUMN_WIDTHS.sku },
-    { key: 'brand', label: 'Brand', width: COLUMN_WIDTHS.brand },
-    { key: 'level1', label: 'Level 1', width: COLUMN_WIDTHS.level1 },
-    { key: 'level2', label: 'Level 2', width: COLUMN_WIDTHS.level2 },
-    { key: 'level3', label: 'Level 3', width: COLUMN_WIDTHS.level3 },
-    { key: 'delete', label: '', width: COLUMN_WIDTHS.delete },
+    { key: 'checkbox', label: '', width: 50 },
+    { key: 'name', label: 'Product Name', width: 200 },
+    { key: 'sku', label: 'SKU/ID', width: 120 },
+    { key: 'brand', label: 'Brand', width: 150 },
+    { key: 'level1', label: 'Category', width: 180 },
+    { key: 'level2', label: 'Subcategory', width: 180 },
+    { key: 'level3', label: 'Big C', width: 180 },
+    { key: 'delete', label: '', width: 60 },
   ];
 
-  const totalWidth = columns.reduce((sum, col) => sum + col.width, 0);
-
   const isAllSelected = selectedRows.size === rows.length && rows.length > 0;
-  const isIndeterminate = selectedRows.size > 0 && selectedRows.size < rows.length;
 
   const handleSelectAll = useCallback((checked: boolean) => {
     if (checked) {
@@ -394,11 +272,19 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
     onRowsChange(updatedRows);
   }, [rows, selectedRows, onRowsChange]);
 
-  const getColumnWidth = useCallback((index: number) => {
-    return columns[index]?.width || 100;
-  }, []);
+  const updateField = useCallback((rowId: string, field: string, value: any) => {
+    const row = rows.find(r => r.id === rowId);
+    if (!row) return;
 
-  const getRowHeight = useCallback(() => ROW_HEIGHT, []);
+    const updatedRow = { ...row };
+    if (field.startsWith('hierarchy.')) {
+      const hierarchyField = field.split('.')[1];
+      updatedRow.hierarchy = { ...updatedRow.hierarchy, [hierarchyField]: value };
+    } else {
+      updatedRow[field as keyof RowData] = value;
+    }
+    handleRowUpdate(updatedRow);
+  }, [rows, handleRowUpdate]);
 
   return (
     <div className="mapping-table-container">
@@ -415,58 +301,95 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
         />
       )}
 
-      <div className="border rounded-lg overflow-hidden bg-card">
-        {/* Header */}
-        <div 
-          className="flex bg-muted/30 border-b sticky top-0 z-10"
-          style={{ height: HEADER_HEIGHT, width: totalWidth }}
-        >
-          {columns.map((column, index) => (
-            <div
-              key={column.key}
-              className="flex items-center px-2 text-sm font-medium border-r"
-              style={{ 
-                width: column.width,
-                position: column.key === 'delete' ? 'sticky' : 'relative',
-                right: column.key === 'delete' ? 0 : 'auto',
-                backgroundColor: column.key === 'delete' ? 'hsl(var(--muted/30))' : 'inherit',
-                zIndex: column.key === 'delete' ? 11 : 10,
-              }}
-            >
-              {column.key === 'checkbox' ? (
-                <Checkbox
-                  checked={isAllSelected}
-                  onCheckedChange={handleSelectAll}
-                  aria-label="Select all rows"
-                />
-              ) : (
-                <span>{column.label}</span>
-              )}
-            </div>
-          ))}
-        </div>
+      <div className="border rounded-lg overflow-auto bg-card max-h-[600px]">
+        <table className="w-full">
+          <thead className="bg-muted/30 sticky top-0 z-10">
+            <tr>
+              {columns.map((column) => (
+                <th
+                  key={column.key}
+                  className="text-left p-2 text-sm font-medium border-r border-border"
+                  style={{ 
+                    width: column.width,
+                    minWidth: column.width,
+                    position: column.key === 'delete' ? 'sticky' : 'relative',
+                    right: column.key === 'delete' ? 0 : 'auto',
+                    backgroundColor: column.key === 'delete' ? 'hsl(var(--muted))' : 'inherit',
+                    zIndex: column.key === 'delete' ? 11 : 10,
+                  }}
+                >
+                  {column.key === 'checkbox' ? (
+                    <Checkbox
+                      checked={isAllSelected}
+                      onCheckedChange={handleSelectAll}
+                      aria-label="Select all rows"
+                    />
+                  ) : (
+                    column.label
+                  )}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.id} className="border-b border-border hover:bg-muted/50">
+                {columns.map((column) => (
+                  <td
+                    key={`${row.id}-${column.key}`}
+                    className="p-2 border-r border-border"
+                    style={{ 
+                      width: column.width,
+                      minWidth: column.width,
+                      position: column.key === 'delete' ? 'sticky' : 'relative',
+                      right: column.key === 'delete' ? 0 : 'auto',
+                      backgroundColor: column.key === 'delete' ? 'hsl(var(--background))' : 'inherit',
+                      zIndex: column.key === 'delete' ? 3 : 1,
+                    }}
+                  >
+                    {column.key === 'checkbox' && (
+                      <Checkbox
+                        checked={selectedRows.has(row.id)}
+                        onCheckedChange={(checked) => handleRowSelect(row.id, !!checked)}
+                        aria-label={`Select row ${row.id}`}
+                      />
+                    )}
 
-        {/* Grid */}
-        <Grid
-          ref={gridRef}
-          columnCount={columns.length}
-          rowCount={rows.length}
-          columnWidth={getColumnWidth}
-          rowHeight={getRowHeight}
-          height={Math.min(600, rows.length * ROW_HEIGHT)}
-          width={totalWidth}
-          itemData={{
-            rows,
-            selectedRows,
-            onRowSelect: handleRowSelect,
-            onRowUpdate: handleRowUpdate,
-            onDeleteRow,
-            hierarchyOptions,
-            columns
-          }}
-        >
-          {Cell}
-        </Grid>
+                    {(column.key === 'name' || column.key === 'sku' || column.key === 'brand') && (
+                      <EditableCell
+                        value={row[column.key as keyof RowData] as string || ''}
+                        onChange={(value) => updateField(row.id, column.key, value)}
+                      />
+                    )}
+
+                    {(column.key === 'level1' || column.key === 'level2' || column.key === 'level3') && (
+                      <AutocompleteCell
+                        value={row.hierarchy?.[column.key] || ''}
+                        options={hierarchyOptions[column.key] || []}
+                        onChange={(value) => updateField(row.id, `hierarchy.${column.key}`, value)}
+                        placeholder={`Select ${column.label}`}
+                      />
+                    )}
+
+                    {column.key === 'delete' && (
+                      <div className="flex justify-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onDeleteRow(row.id)}
+                          className="h-8 w-8 p-0 hover:bg-destructive/10"
+                          aria-label={`Delete row ${row.id}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    )}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
