@@ -157,9 +157,9 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
   const [isBatchEditOpen, setIsBatchEditOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Create hierarchy helper for batch edit
+  // Create hierarchy helper for batch edit using the actual hierarchy rules
   const hierarchyHelper = useMemo(() => {
-    // Convert hierarchyOptions to rules format for OptimizedHierarchyHelper
+    // Convert hierarchyOptions to proper rules format for OptimizedHierarchyHelper
     const rules = [];
     const level1Options = hierarchyOptions.level1 || [];
     const level2Options = hierarchyOptions.level2 || [];
@@ -168,18 +168,24 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
     const level5Options = hierarchyOptions.level5 || [];
     const level6Options = hierarchyOptions.level6 || [];
     
-    // Create sample rules combinations
+    // Generate all possible valid combinations from the hierarchy rules
     for (const cat of level1Options) {
       for (const subcat of level2Options) {
         for (const bigC of level3Options) {
-          rules.push({
-            category: cat.value,
-            subcategory: subcat.value,
-            bigC: bigC.value,
-            smallC: level4Options[0]?.value || '',
-            segment: level5Options[0]?.value || '',
-            subSegment: level6Options[0]?.value || ''
-          });
+          for (const smallC of level4Options) {
+            for (const segment of level5Options) {
+              for (const subSegment of level6Options) {
+                rules.push({
+                  category: cat.value,
+                  subcategory: subcat.value,
+                  bigC: bigC.value,
+                  smallC: smallC.value,
+                  segment: segment.value,
+                  subSegment: subSegment.value
+                });
+              }
+            }
+          }
         }
       }
     }
@@ -202,8 +208,6 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
     { key: 'clear', label: '', width: 60 },
   ];
 
-  const isAllSelected = selectedRows.size === rows.length && rows.length > 0;
-
   // Filter rows based on show incomplete
   const filteredRows = useMemo(() => {
     if (!showIncomplete) return rows;
@@ -213,6 +217,18 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
              !hierarchy.level4 || !hierarchy.level5 || !hierarchy.level6;
     });
   }, [rows, showIncomplete]);
+
+  // Search functionality
+  const searchFilteredRows = useMemo(() => {
+    if (!searchQuery.trim()) return filteredRows;
+    return filteredRows.filter(row => 
+      row.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      row.sku?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      row.brand?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [filteredRows, searchQuery]);
+
+  const isAllSelected = selectedRows.size === searchFilteredRows.length && searchFilteredRows.length > 0;
 
   // Calculate completion statistics
   const completionStats = useMemo(() => {
@@ -230,17 +246,18 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
     };
   }, [rows]);
 
-  // Convert rows to products for batch edit
+
+  // Convert rows to products for batch edit (only from filtered/searched rows)
   const selectedProducts = useMemo((): Product[] => {
     return Array.from(selectedRows).map(rowId => {
-      const row = rows.find(r => r.id === rowId);
+      const row = searchFilteredRows.find(r => r.id === rowId);
       if (!row) return null;
       
       return {
         id: row.id,
         title: row.name,
         brand: row.brand,
-        url: '',
+        url: row.url || '',
         category: row.hierarchy?.level1,
         subcategory: row.hierarchy?.level2,
         bigC: row.hierarchy?.level3,
@@ -249,18 +266,18 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
         subSegment: row.hierarchy?.level6
       };
     }).filter(Boolean) as Product[];
-  }, [selectedRows, rows]);
+  }, [selectedRows, searchFilteredRows]);
 
   const handleSelectAll = useCallback((checked: boolean) => {
     if (checked) {
-      const allIds = new Set(rows.map(row => row.id));
-      setSelectedRows(allIds);
-      onSelectRows(Array.from(allIds));
+      const allFilteredIds = new Set(searchFilteredRows.map(row => row.id));
+      setSelectedRows(allFilteredIds);
+      onSelectRows(Array.from(allFilteredIds));
     } else {
       setSelectedRows(new Set());
       onSelectRows([]);
     }
-  }, [rows, onSelectRows]);
+  }, [searchFilteredRows, onSelectRows]);
 
   const handleRowSelect = useCallback((rowId: string, selected: boolean) => {
     const newSelection = new Set(selectedRows);
@@ -346,15 +363,6 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
     handleRowUpdate(updatedRow);
   }, [rows, handleRowUpdate, hierarchyHelper]);
 
-  // Search functionality
-  const searchFilteredRows = useMemo(() => {
-    if (!searchQuery.trim()) return filteredRows;
-    return filteredRows.filter(row => 
-      row.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      row.sku?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      row.brand?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [filteredRows, searchQuery]);
 
   // CSV Export functionality
   const exportToCSV = useCallback(() => {
