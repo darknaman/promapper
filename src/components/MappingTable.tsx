@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Product } from '../types/mapping';
-import { HierarchyHelper } from '../utils/hierarchyHelper';
+import { OptimizedHierarchyHelper } from '../utils/optimizedHierarchyHelper';
 import ProductRow from './ProductRow';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
@@ -9,7 +9,7 @@ import { Download, Search, Filter, CheckCircle2, AlertCircle } from 'lucide-reac
 
 interface MappingTableProps {
   products: Product[];
-  hierarchyHelper: HierarchyHelper;
+  hierarchyHelper: OptimizedHierarchyHelper;
   onProductUpdate: (productId: string, updatedProduct: Product) => void;
   onExport: () => void;
 }

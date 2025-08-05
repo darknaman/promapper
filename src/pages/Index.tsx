@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Product, HierarchyRule } from '../types/mapping';
-import { HierarchyHelper } from '../utils/hierarchyHelper';
+import { OptimizedHierarchyHelper } from '../utils/optimizedHierarchyHelper';
 import FileUpload from '../components/FileUpload';
 import MappingTable from '../components/MappingTable';
 import { Card } from '../components/ui/card';
@@ -18,8 +18,8 @@ const Index = () => {
   const { toast } = useToast();
 
   const hierarchyHelper = useMemo(() => {
-    const helper = new HierarchyHelper(hierarchyRules);
-    // Clear cache when rules change
+    const helper = new OptimizedHierarchyHelper(hierarchyRules);
+    // Clear cache when rules change for optimal performance
     helper.clearCache();
     return helper;
   }, [hierarchyRules]);
@@ -295,11 +295,16 @@ const Index = () => {
       <div className="container mx-auto px-4 py-8">
         {/* Header with Logo */}
         <div className="mb-8">
-          <div className="flex items-center justify-center mb-6">
-            <img src={logo} alt="1Digital Stack Logo" className="h-12 w-auto mr-4" />
-            <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              Product Classification Mapping Tool
-            </h1>
+          <div className="flex items-start justify-between mb-6">
+            <div className="flex items-center">
+              <img src={logo} alt="1Digital Stack Logo" className="h-10 w-auto mr-4" />
+            </div>
+            <div className="flex-1 text-center">
+              <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+                Product Classification Mapping Tool
+              </h1>
+            </div>
+            <div className="w-20"></div> {/* Spacer for balance */}
           </div>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto text-center">
             Map product titles to hierarchical categories using cascading dropdowns. 
@@ -339,6 +344,7 @@ const Index = () => {
               expectedHeaders={['id', 'title']}
               onFileUpload={handleProductsUpload}
               uploadedFileName={productsFileName}
+              fileType="products"
             />
             <Button
               variant="outline"
@@ -357,6 +363,7 @@ const Index = () => {
               expectedHeaders={['category', 'subcategory', 'bigC', 'smallC', 'segment', 'subSegment']}
               onFileUpload={handleHierarchyUpload}
               uploadedFileName={hierarchyFileName}
+              fileType="hierarchy"
             />
             <Button
               variant="outline"

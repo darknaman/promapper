@@ -1,12 +1,12 @@
 import React, { memo, useMemo, useCallback } from 'react';
 import { Product, ClassificationLevel, FilterState } from '../types/mapping';
-import { HierarchyHelper } from '../utils/hierarchyHelper';
+import { OptimizedHierarchyHelper } from '../utils/optimizedHierarchyHelper';
 import CascadingSelect from './CascadingSelect';
 import { Input } from './ui/input';
 
 interface ProductRowProps {
   product: Product;
-  hierarchyHelper: HierarchyHelper;
+  hierarchyHelper: OptimizedHierarchyHelper;
   onProductUpdate: (productId: string, updatedProduct: Product) => void;
   isEven: boolean;
 }

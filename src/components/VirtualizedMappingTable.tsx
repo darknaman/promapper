@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { FixedSizeList as List } from 'react-window';
 import { Product } from '../types/mapping';
-import { HierarchyHelper } from '../utils/hierarchyHelper';
+import { OptimizedHierarchyHelper } from '../utils/optimizedHierarchyHelper';
 import ProductRow from './ProductRow';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
@@ -13,7 +13,7 @@ import { Search, Download, Filter } from 'lucide-react';
 
 interface VirtualizedMappingTableProps {
   products: Product[];
-  hierarchyHelper: HierarchyHelper;
+  hierarchyHelper: OptimizedHierarchyHelper;
   onProductUpdate: (productId: string, updatedProduct: Product) => void;
   onExport: () => void;
 }
