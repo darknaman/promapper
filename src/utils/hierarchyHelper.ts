@@ -7,8 +7,18 @@ export class HierarchyHelper {
     this.rules = rules;
   }
 
+  // Memoized cache for performance optimization
+  private optionsCache = new Map<string, DropdownOption[]>();
+  private filteredRulesCache = new Map<string, HierarchyRule[]>();
+
   // Get available options for a specific level based on current selections
   getAvailableOptions(level: ClassificationLevel, currentSelections: FilterState): DropdownOption[] {
+    const cacheKey = this.getCacheKey(level, currentSelections);
+    
+    if (this.optionsCache.has(cacheKey)) {
+      return this.optionsCache.get(cacheKey)!;
+    }
+
     const filteredRules = this.getFilteredRules(currentSelections, level);
     const uniqueValues = new Set<string>();
     
@@ -19,14 +29,32 @@ export class HierarchyHelper {
       }
     });
 
-    return Array.from(uniqueValues)
+    const options = Array.from(uniqueValues)
       .sort()
       .map(value => ({ label: value, value }));
+    
+    this.optionsCache.set(cacheKey, options);
+    return options;
+  }
+
+  // Generate cache key for memoization
+  private getCacheKey(level: ClassificationLevel, selections: FilterState, excludeLevel?: ClassificationLevel): string {
+    const relevantSelections = { ...selections };
+    if (excludeLevel) {
+      delete relevantSelections[excludeLevel];
+    }
+    return `${level}-${JSON.stringify(relevantSelections)}`;
   }
 
   // Get filtered rules based on current selections, excluding the specified level
   private getFilteredRules(selections: FilterState, excludeLevel?: ClassificationLevel): HierarchyRule[] {
-    return this.rules.filter(rule => {
+    const cacheKey = `filtered-${JSON.stringify(selections)}-${excludeLevel || 'none'}`;
+    
+    if (this.filteredRulesCache.has(cacheKey)) {
+      return this.filteredRulesCache.get(cacheKey)!;
+    }
+
+    const filteredRules = this.rules.filter(rule => {
       const levels: ClassificationLevel[] = ['category', 'subcategory', 'bigC', 'smallC', 'segment', 'subSegment'];
       
       return levels.every(level => {
@@ -35,6 +63,15 @@ export class HierarchyHelper {
         return !selectedValue || rule[level] === selectedValue;
       });
     });
+
+    this.filteredRulesCache.set(cacheKey, filteredRules);
+    return filteredRules;
+  }
+
+  // Clear caches when rules change
+  clearCache(): void {
+    this.optionsCache.clear();
+    this.filteredRulesCache.clear();
   }
 
   // Check if a combination of selections is valid

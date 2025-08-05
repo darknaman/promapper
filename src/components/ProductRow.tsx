@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo, useMemo, useCallback } from 'react';
 import { Product, ClassificationLevel, FilterState } from '../types/mapping';
 import { HierarchyHelper } from '../utils/hierarchyHelper';
 import CascadingSelect from './CascadingSelect';
@@ -11,33 +11,34 @@ interface ProductRowProps {
   isEven: boolean;
 }
 
-const ProductRow: React.FC<ProductRowProps> = ({
+const ProductRow: React.FC<ProductRowProps> = memo(({
   product,
   hierarchyHelper,
   onProductUpdate,
   isEven
 }) => {
-  const classifications: ClassificationLevel[] = ['category', 'subcategory', 'bigC', 'smallC', 'segment', 'subSegment'];
+  const classifications: ClassificationLevel[] = useMemo(() => 
+    ['category', 'subcategory', 'bigC', 'smallC', 'segment', 'subSegment'], []);
 
-  const getCurrentSelections = (): FilterState => ({
+  const currentSelections = useMemo((): FilterState => ({
     category: product.category,
     subcategory: product.subcategory,
     bigC: product.bigC,
     smallC: product.smallC,
     segment: product.segment,
     subSegment: product.subSegment
-  });
+  }), [product.category, product.subcategory, product.bigC, product.smallC, product.segment, product.subSegment]);
 
-  const handleProductFieldChange = (field: keyof Product, value: string) => {
+  const handleProductFieldChange = useCallback((field: keyof Product, value: string) => {
     const updatedProduct = { ...product, [field]: value };
     onProductUpdate(product.id, updatedProduct);
-  };
+  }, [product, onProductUpdate]);
 
-  const handleClassificationChange = (level: ClassificationLevel, value: string | null) => {
+  const handleClassificationChange = useCallback((level: ClassificationLevel, value: string | null) => {
     let updatedProduct = { ...product, [level]: value || undefined };
     
     // Clear invalid selections and auto-complete
-    const currentSelections = {
+    const newSelections = {
       category: updatedProduct.category,
       subcategory: updatedProduct.subcategory,
       bigC: updatedProduct.bigC,
@@ -47,7 +48,7 @@ const ProductRow: React.FC<ProductRowProps> = ({
     };
 
     // Clear invalid selections
-    const clearedSelections = hierarchyHelper.clearInvalidSelections(currentSelections, level);
+    const clearedSelections = hierarchyHelper.clearInvalidSelections(newSelections, level);
     
     // Auto-complete when possible
     const autoCompletedSelections = hierarchyHelper.autoCompleteSelections(clearedSelections);
@@ -63,13 +64,16 @@ const ProductRow: React.FC<ProductRowProps> = ({
     };
 
     onProductUpdate(product.id, updatedProduct);
-  };
+  }, [product, hierarchyHelper, onProductUpdate]);
 
-  const getOptionsForLevel = (level: ClassificationLevel) => {
-    return hierarchyHelper.getAvailableOptions(level, getCurrentSelections());
-  };
+  const getOptionsForLevel = useCallback((level: ClassificationLevel) => {
+    return hierarchyHelper.getAvailableOptions(level, currentSelections);
+  }, [hierarchyHelper, currentSelections]);
 
-  const isComplete = classifications.every(level => product[level]);
+  const isComplete = useMemo(() => 
+    classifications.every(level => product[level]), 
+    [classifications, product.category, product.subcategory, product.bigC, product.smallC, product.segment, product.subSegment]
+  );
 
   return (
     <tr className={`
@@ -127,6 +131,8 @@ const ProductRow: React.FC<ProductRowProps> = ({
       ))}
     </tr>
   );
-};
+});
+
+ProductRow.displayName = 'ProductRow';
 
 export default ProductRow;

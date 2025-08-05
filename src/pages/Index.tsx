@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Product, HierarchyRule } from '../types/mapping';
 import { HierarchyHelper } from '../utils/hierarchyHelper';
 import FileUpload from '../components/FileUpload';
@@ -8,6 +8,7 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { useToast } from '../hooks/use-toast';
 import { Shuffle, Database, Download, RotateCcw, FileDown } from 'lucide-react';
+import logo from '../assets/logo.svg';
 
 const Index = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -17,7 +18,10 @@ const Index = () => {
   const { toast } = useToast();
 
   const hierarchyHelper = useMemo(() => {
-    return new HierarchyHelper(hierarchyRules);
+    const helper = new HierarchyHelper(hierarchyRules);
+    // Clear cache when rules change
+    helper.clearCache();
+    return helper;
   }, [hierarchyRules]);
 
   const handleProductsUpload = (data: any[], fileName: string) => {
@@ -78,13 +82,13 @@ const Index = () => {
     }
   };
 
-  const handleProductUpdate = (productId: string, updatedProduct: Product) => {
+  const handleProductUpdate = useCallback((productId: string, updatedProduct: Product) => {
     setProducts(prev => 
       prev.map(product => 
         product.id === productId ? updatedProduct : product
       )
     );
-  };
+  }, []);
 
   const handleExport = () => {
     if (products.length === 0) return;
@@ -279,20 +283,25 @@ const Index = () => {
     });
   };
 
-  const completedCount = products.filter(product => {
-    const levels = ['category', 'subcategory', 'bigC', 'smallC', 'segment', 'subSegment'];
-    return levels.every(level => product[level as keyof Product]);
-  }).length;
+  const completedCount = useMemo(() => {
+    return products.filter(product => {
+      const levels = ['category', 'subcategory', 'bigC', 'smallC', 'segment', 'subSegment'];
+      return levels.every(level => product[level as keyof Product]);
+    }).length;
+  }, [products]);
 
   return (
     <div className="min-h-screen bg-gradient-data">
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8 text-center">
-          <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-4">
-            Product Classification Mapping Tool
-          </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+        {/* Header with Logo */}
+        <div className="mb-8">
+          <div className="flex items-center justify-center mb-6">
+            <img src={logo} alt="1Digital Stack Logo" className="h-12 w-auto mr-4" />
+            <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+              Product Classification Mapping Tool
+            </h1>
+          </div>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto text-center">
             Map product titles to hierarchical categories using cascading dropdowns. 
             Reduce classification errors with intelligent filtering and validation.
           </p>
@@ -424,12 +433,21 @@ const Index = () => {
 
         {/* Mapping Interface */}
         {products.length > 0 && hierarchyRules.length > 0 ? (
-          <MappingTable
-            products={products}
-            hierarchyHelper={hierarchyHelper}
-            onProductUpdate={handleProductUpdate}
-            onExport={handleExport}
-          />
+          products.length > 100 ? (
+            <MappingTable
+              products={products}
+              hierarchyHelper={hierarchyHelper}
+              onProductUpdate={handleProductUpdate}
+              onExport={handleExport}
+            />
+          ) : (
+            <MappingTable
+              products={products}
+              hierarchyHelper={hierarchyHelper}
+              onProductUpdate={handleProductUpdate}
+              onExport={handleExport}
+            />
+          )
         ) : (
           <Card className="p-12 text-center">
             <div className="space-y-6">
