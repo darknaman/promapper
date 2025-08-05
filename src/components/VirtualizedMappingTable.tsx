@@ -138,6 +138,15 @@ const VirtualizedMappingTable: React.FC<VirtualizedMappingTableProps> = ({
     );
   }, [filteredProducts, hierarchyHelper, onProductUpdate, columnWidths]);
 
+  const headerRef = React.useRef<HTMLDivElement>(null);
+  const listRef = React.useRef<any>(null);
+
+  const handleScroll = useCallback((props: any) => {
+    if (headerRef.current && props.scrollLeft !== undefined) {
+      headerRef.current.scrollLeft = props.scrollLeft;
+    }
+  }, []);
+
   if (products.length === 0) {
     return (
       <Card className="p-12 text-center">
@@ -208,14 +217,16 @@ const VirtualizedMappingTable: React.FC<VirtualizedMappingTableProps> = ({
 
       {/* Virtualized table */}
       <Card className="overflow-hidden">
-        <ResizableHeader columns={columns} onColumnResize={handleColumnResize} />
+        <ResizableHeader ref={headerRef} columns={columns} onColumnResize={handleColumnResize} />
         
         {filteredProducts.length > 0 ? (
           <List
+            ref={listRef}
             height={Math.min(600, filteredProducts.length * ROW_HEIGHT)}
             itemCount={filteredProducts.length}
             itemSize={ROW_HEIGHT}
             width="100%"
+            onScroll={handleScroll}
           >
             {Row}
           </List>
