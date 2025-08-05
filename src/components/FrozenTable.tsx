@@ -116,7 +116,7 @@ const FrozenTable: React.FC<FrozenTableProps> = ({
     document.addEventListener('mouseup', handleMouseUp);
   }, [layout, onColumnResize]);
 
-  const HeaderCell = React.memo(({ column, isLast }: { column: ColumnConfig; isLast: boolean }) => (
+  const HeaderCell = useCallback(({ column, isLast }: { column: ColumnConfig; isLast: boolean }) => (
     <div 
       className="flex items-center justify-between h-full px-2 text-sm font-medium relative group border-r"
       style={{ width: column.width }}
@@ -125,7 +125,6 @@ const FrozenTable: React.FC<FrozenTableProps> = ({
         {column.key === 'id' && (
           <Checkbox
             checked={isAllSelected}
-            ref={undefined}
             onCheckedChange={onSelectAll}
             className="h-4 w-4"
           />
@@ -141,9 +140,10 @@ const FrozenTable: React.FC<FrozenTableProps> = ({
         />
       )}
     </div>
-  ));
+  ), [isAllSelected, onSelectAll, handleResizeStart]);
 
-  const Cell = React.memo(({ columnIndex, rowIndex, style }: any) => {
+  const Cell = useCallback(({ columnIndex, rowIndex, style, data }: any) => {
+    const { products, allColumns, selectedProducts, onProductSelect, onProductUpdate, hierarchyHelper, editingCell, setEditingCell } = data;
     const product = products[rowIndex];
     const column = allColumns[columnIndex];
     
@@ -205,7 +205,6 @@ const FrozenTable: React.FC<FrozenTableProps> = ({
         <div style={cellStyle} className="flex items-center gap-2 px-2">
           <Checkbox
             checked={selectedProducts.has(product.id)}
-            ref={undefined}
             onCheckedChange={(checked) => onProductSelect(product.id, !!checked)}
             className="h-4 w-4 shrink-0"
           />
@@ -304,7 +303,7 @@ const FrozenTable: React.FC<FrozenTableProps> = ({
     }
 
     return <div style={cellStyle} />;
-  });
+  }, []);
 
   const handleScroll = useCallback(({ scrollLeft }: any) => {
     if (headerRef.current && scrollableRef.current) {
@@ -379,9 +378,15 @@ const FrozenTable: React.FC<FrozenTableProps> = ({
           height={Math.min(600, products.length * ROW_HEIGHT)}
           width={layout.totalFrozenWidth + scrollableColumns.reduce((sum, col) => sum + col.width, 0) + 60}
           onScroll={handleScroll}
-          style={{ 
-            overflowX: 'auto',
-            overflowY: 'auto'
+          itemData={{
+            products,
+            allColumns,
+            selectedProducts,
+            onProductSelect,
+            onProductUpdate,
+            hierarchyHelper,
+            editingCell,
+            setEditingCell
           }}
         >
           {Cell}
