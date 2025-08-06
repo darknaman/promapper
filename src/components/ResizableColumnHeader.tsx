@@ -16,6 +16,7 @@ interface ResizableColumnHeaderProps {
   onRemoveColumn?: (columnKey: string) => void;
   children: React.ReactNode;
   className?: string;
+  style?: React.CSSProperties;
 }
 
 const ResizableColumnHeader: React.FC<ResizableColumnHeaderProps> = ({
@@ -28,7 +29,8 @@ const ResizableColumnHeader: React.FC<ResizableColumnHeaderProps> = ({
   onUnfreezeAll,
   onRemoveColumn,
   children,
-  className
+  className,
+  style
 }) => {
   const [isResizing, setIsResizing] = useState(false);
   const [resizePreview, setResizePreview] = useState<number | null>(null);
@@ -86,6 +88,7 @@ const ResizableColumnHeader: React.FC<ResizableColumnHeaderProps> = ({
         position: isFrozen ? 'sticky' : 'relative',
         left: isFrozen ? 0 : 'auto',
         zIndex: isFrozen ? 20 : 10,
+        ...style
       }}
     >
       <div className="flex items-center justify-between gap-1 min-w-0">

@@ -140,21 +140,24 @@ const TooltipCell: React.FC<{
     );
   }
 
-  const truncatedValue = value && value.length > 30 ? `${value.substring(0, 30)}...` : value;
-
   return (
     <TooltipProvider delayDuration={300}>
       <Tooltip>
         <TooltipTrigger asChild>
           <div 
-            className="h-8 px-2 flex items-center text-xs cursor-pointer hover:bg-muted/50 rounded break-words overflow-hidden"
+            className="h-8 px-2 flex items-center text-xs cursor-pointer hover:bg-muted/50 rounded"
             onDoubleClick={handleDoubleClick}
-            style={{ wordWrap: 'break-word', overflowWrap: 'break-word' }}
+            style={{ 
+              wordBreak: 'break-word',
+              overflowWrap: 'break-word',
+              whiteSpace: 'normal',
+              lineHeight: '1.2'
+            }}
           >
-            {truncatedValue || 'Click to edit'}
+            {value || 'Click to edit'}
           </div>
         </TooltipTrigger>
-        {value && value.length > 30 && (
+        {value && value.length > 50 && (
           <TooltipContent side="top" className="max-w-md break-words">
             <p>{value}</p>
           </TooltipContent>
@@ -823,140 +826,31 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
         </div>
       </div>
 
-      <div className="border rounded-lg overflow-hidden bg-card h-[600px] relative flex flex-col">
-        {/* Frozen columns container */}
-        {frozenColumnCount > 0 && (
-          <div className="absolute left-0 top-0 bottom-0 bg-background border-r z-30 overflow-y-auto">
-            <table className="h-full">
-              <thead className="bg-muted/30 sticky top-0 z-40">
-                <tr>
-                  {frozenColumns.map((column, index) => (
-                    <ResizableColumnHeader
-                      key={column.key}
-                      column={column}
-                      columnIndex={index}
-                      totalColumns={managedColumns.length}
-                      frozenColumnCount={frozenColumnCount}
-                      onColumnResize={handleColumnResize}
-                      onFreezeColumnsUpTo={freezeColumnsUpTo}
-                      onUnfreezeAll={unfreezeAllColumns}
-                      onRemoveColumn={column.isCustom ? handleRemoveColumn : undefined}
-                    >
-                      {column.key === 'checkbox' ? (
-                        <Checkbox
-                          checked={isAllSelected}
-                          onCheckedChange={handleSelectAll}
-                          aria-label="Select all rows"
-                        />
-                      ) : column.key === 'clear' ? (
-                        <span className="text-xs text-muted-foreground">Clear</span>
-                      ) : (
-                        <SortableHeader
-                          label={column.label}
-                          sortKey={column.key}
-                          currentSort={sortConfig}
-                          onSort={handleSort}
-                          width={column.width}
-                        />
-                      )}
-                    </ResizableColumnHeader>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {sortedRows.map((row) => (
-                  <tr key={row.id} className="border-b border-border hover:bg-muted/50">
-                    {frozenColumns.map((column) => (
-                      <td
-                        key={`${row.id}-${column.key}`}
-                        className="p-2 border-r border-border bg-background"
-                        style={{ 
-                          width: column.width,
-                          minWidth: column.width,
-                          maxWidth: column.width,
-                          wordWrap: 'break-word',
-                          overflowWrap: 'break-word',
-                        }}
-                      >
-                        {/* Cell content rendering */}
-                        {column.key === 'checkbox' && (
-                          <Checkbox
-                            checked={selectedRows.has(row.id)}
-                            onCheckedChange={(checked) => handleRowSelect(row.id, !!checked)}
-                            aria-label={`Select row ${row.id}`}
-                          />
-                        )}
-                        {column.key === 'url' && (
-                          <URLCell
-                            value={row[column.key as keyof RowData] as string || ''}
-                            onChange={(value) => updateField(row.id, column.key, value)}
-                          />
-                        )}
-                        {(column.key === 'name' || column.key === 'sku' || column.key === 'brand') && (
-                          <TooltipCell
-                            value={row[column.key as keyof RowData] as string || ''}
-                            onChange={(value) => updateField(row.id, column.key, value)}
-                          />
-                        )}
-                        {(column.key === 'level1' || column.key === 'level2' || column.key === 'level3' || 
-                          column.key === 'level4' || column.key === 'level5' || column.key === 'level6') && (
-                          <HierarchyAutocompleteCell
-                            row={row}
-                            column={column}
-                            hierarchyHelper={hierarchyHelper}
-                            onRowUpdate={handleRowUpdate}
-                            hierarchyOptions={hierarchyOptions}
-                          />
-                        )}
-                        {column.isCustom && (
-                          <TooltipCell
-                            value={getValue(row.id, column.key)}
-                            onChange={(value) => setValue(row.id, column.key, value)}
-                          />
-                        )}
-                        {column.key === 'clear' && (
-                          <div className="flex justify-center">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => clearRowMapping(row.id)}
-                              className="h-8 w-8 p-0 hover:bg-destructive/10"
-                              aria-label={`Clear mapping for row ${row.id}`}
-                            >
-                              <RotateCcw className="h-4 w-4 text-muted-foreground" />
-                            </Button>
-                          </div>
-                        )}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Scrollable table container */}
-        <div 
-          className="overflow-auto flex-1"
-          style={{ 
-            marginLeft: frozenColumnCount > 0 ? frozenColumns.reduce((acc, col) => acc + col.width, 0) : 0 
-          }}
-        >
-          <table className="w-full">
-            <thead className="bg-muted/30 sticky top-0 z-10">
+      <div className="border rounded-lg overflow-hidden bg-card h-[600px] relative">
+        {/* Main table container with unified scrolling */}
+        <div className="w-full h-full overflow-auto">
+          <table className="w-full relative">
+            <thead className="bg-muted/30 sticky top-0 z-40">
               <tr>
-                {scrollableColumns.map((column, index) => (
+                {managedColumns.map((column, index) => (
                   <ResizableColumnHeader
                     key={column.key}
                     column={column}
-                    columnIndex={frozenColumnCount + index}
+                    columnIndex={index}
                     totalColumns={managedColumns.length}
                     frozenColumnCount={frozenColumnCount}
                     onColumnResize={handleColumnResize}
                     onFreezeColumnsUpTo={freezeColumnsUpTo}
                     onUnfreezeAll={unfreezeAllColumns}
                     onRemoveColumn={column.isCustom ? handleRemoveColumn : undefined}
+                    style={{
+                      position: index < frozenColumnCount ? 'sticky' : 'relative',
+                      left: index < frozenColumnCount 
+                        ? managedColumns.slice(0, index).reduce((acc, col) => acc + col.width, 0)
+                        : 'auto',
+                      zIndex: index < frozenColumnCount ? 41 : 10,
+                      backgroundColor: index < frozenColumnCount ? 'hsl(var(--background))' : 'inherit',
+                    }}
                   >
                     {column.key === 'checkbox' ? (
                       <Checkbox
@@ -982,7 +876,7 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
             <tbody>
               {sortedRows.map((row) => (
                 <tr key={row.id} className="border-b border-border hover:bg-muted/50">
-                  {scrollableColumns.map((column) => (
+                  {managedColumns.map((column, index) => (
                     <td
                       key={`${row.id}-${column.key}`}
                       className="p-2 border-r border-border"
@@ -990,12 +884,12 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
                         width: column.width,
                         minWidth: column.width,
                         maxWidth: column.width,
-                        wordWrap: 'break-word',
-                        overflowWrap: 'break-word',
-                        position: column.key === 'clear' ? 'sticky' : 'relative',
-                        right: column.key === 'clear' ? 0 : 'auto',
-                        backgroundColor: column.key === 'clear' ? 'hsl(var(--background))' : 'inherit',
-                        zIndex: column.key === 'clear' ? 11 : 1,
+                        position: index < frozenColumnCount ? 'sticky' : 'relative',
+                        left: index < frozenColumnCount 
+                          ? managedColumns.slice(0, index).reduce((acc, col) => acc + col.width, 0)
+                          : 'auto',
+                        zIndex: index < frozenColumnCount ? 21 : 1,
+                        backgroundColor: index < frozenColumnCount ? 'hsl(var(--background))' : 'inherit',
                       }}
                     >
                       {/* Cell content rendering */}
@@ -1034,7 +928,7 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
                           onChange={(value) => setValue(row.id, column.key, value)}
                         />
                       )}
-                      {column.key === 'clear' && (
+                       {column.key === 'clear' && (
                         <div className="flex justify-center">
                           <Button
                             variant="ghost"
