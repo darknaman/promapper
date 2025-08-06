@@ -9,7 +9,7 @@ interface FooterAttributionProps {
 const FooterAttribution: React.FC<FooterAttributionProps> = ({ className }) => {
   return (
     <footer className={cn(
-      "fixed bottom-4 right-4 z-30",
+      "fixed bottom-4 left-4 z-30",
       "bg-background/80 backdrop-blur-sm border border-border rounded-lg",
       "px-3 py-2 shadow-lg",
       "text-xs text-muted-foreground",
