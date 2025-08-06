@@ -10,6 +10,7 @@ import { Badge } from '../components/ui/badge';
 import { useToast } from '../hooks/use-toast';
 import { Shuffle, Database, Download, RotateCcw, FileDown, Save, RefreshCw } from 'lucide-react';
 import { saveMappingData, loadMappingData, clearMappingData, hasSavedData, getLastSavedTime, AutoSaveManager } from '../utils/mappingPersistence';
+import { useCustomColumns } from '../hooks/useCustomColumns';
 import logo from '../assets/logo.svg';
 
 const Index = () => {
@@ -20,6 +21,7 @@ const Index = () => {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const { toast } = useToast();
+  const { customColumns, setValue } = useCustomColumns();
   const autoSaveManagerRef = useRef<AutoSaveManager | null>(null);
 
   // Initialize auto-save manager (silent auto-save)
@@ -78,18 +80,31 @@ const Index = () => {
         const chunk = data.slice(i, i + chunkSize);
         
         // Process chunk synchronously but yield control
-        const processedChunk = chunk.map((row, index) => ({
-          id: row.id || row.ID || `product-${i + index}`,
-          title: row.title || row.Title || row.name || row.Name || '',
-          brand: row.brand || row.Brand || '',
-          url: row.url || row.URL || '',
-          category: row.category,
-          subcategory: row.subcategory,
-          bigC: row.bigC,
-          smallC: row.smallC,
-          segment: row.segment,
-          subSegment: row.subSegment
-        }));
+        const processedChunk = chunk.map((row, index) => {
+          const productId = row.id || row.ID || `product-${i + index}`;
+          const product = {
+            id: productId,
+            title: row.title || row.Title || row.name || row.Name || '',
+            brand: row.brand || row.Brand || '',
+            url: row.url || row.URL || '',
+            category: row.category,
+            subcategory: row.subcategory,
+            bigC: row.bigC,
+            smallC: row.smallC,
+            segment: row.segment,
+            subSegment: row.subSegment
+          };
+
+          // Map custom columns from CSV data
+          customColumns.forEach(column => {
+            const csvValue = row[column.name] || row[column.name.toLowerCase()] || row[column.name.toUpperCase()];
+            if (csvValue !== undefined && csvValue !== '') {
+              setValue(productId, column.id, String(csvValue));
+            }
+          });
+
+          return product;
+        });
         
         processedProducts.push(...processedChunk);
         
@@ -120,7 +135,7 @@ const Index = () => {
         variant: "destructive",
       });
     }
-  }, [toast]);
+  }, [toast, customColumns, setValue]);
 
   const handleHierarchyUpload = (data: any[], fileName: string) => {
     try {
