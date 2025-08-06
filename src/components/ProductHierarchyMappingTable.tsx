@@ -15,6 +15,7 @@ import { Product, ClassificationLevel, FilterState } from '../types/mapping';
 import { OptimizedHierarchyHelper } from '../utils/optimizedHierarchyHelper';
 import AddColumnModal from './AddColumnModal';
 import { useCustomColumns } from '../hooks/useCustomColumns';
+import { SortableHeader, SortDirection } from './SortableHeader';
 
 const AutocompleteCell: React.FC<{
   value: string;
@@ -311,6 +312,7 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
   const [showIncomplete, setShowIncomplete] = useState(false);
   const [isBatchEditOpen, setIsBatchEditOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: SortDirection } | null>(null);
   
   // Custom columns hook
   const { customColumns, addColumn, removeColumn, updateColumnWidth, getValue, setValue } = useCustomColumns();
@@ -410,7 +412,67 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
     );
   }, [filteredRows, searchQuery]);
 
-  const isAllSelected = selectedRows.size === searchFilteredRows.length && searchFilteredRows.length > 0;
+  // Sorting functionality
+  const sortedRows = useMemo(() => {
+    if (!sortConfig) return searchFilteredRows;
+
+    return [...searchFilteredRows].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      // Get values based on column key
+      if (sortConfig.key === 'name') {
+        aValue = a.name || '';
+        bValue = b.name || '';
+      } else if (sortConfig.key === 'sku') {
+        aValue = a.sku || '';
+        bValue = b.sku || '';
+      } else if (sortConfig.key === 'brand') {
+        aValue = a.brand || '';
+        bValue = b.brand || '';
+      } else if (sortConfig.key === 'url') {
+        aValue = a.url || '';
+        bValue = b.url || '';
+      } else if (sortConfig.key.startsWith('level')) {
+        aValue = a.hierarchy?.[sortConfig.key] || '';
+        bValue = b.hierarchy?.[sortConfig.key] || '';
+      } else if (customColumns.find(col => col.id === sortConfig.key)) {
+        // Handle custom columns
+        const column = customColumns.find(col => col.id === sortConfig.key);
+        aValue = getValue(a.id, sortConfig.key);
+        bValue = getValue(b.id, sortConfig.key);
+        
+        // Convert to number if column is numeric
+        if (column?.dataType === 'number') {
+          aValue = Number(aValue) || 0;
+          bValue = Number(bValue) || 0;
+        }
+      } else {
+        return 0;
+      }
+
+      // Handle different data types
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return sortConfig.direction === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+
+      // String comparison (case-insensitive)
+      const aStr = String(aValue).toLowerCase();
+      const bStr = String(bValue).toLowerCase();
+      
+      if (sortConfig.direction === 'asc') {
+        return aStr.localeCompare(bStr);
+      } else {
+        return bStr.localeCompare(aStr);
+      }
+    });
+  }, [searchFilteredRows, sortConfig, customColumns, getValue]);
+
+  const handleSort = useCallback((key: string, direction: SortDirection) => {
+    setSortConfig(direction ? { key, direction } : null);
+  }, []);
+
+  const isAllSelected = selectedRows.size === sortedRows.length && sortedRows.length > 0;
 
   // Calculate completion statistics
   const completionStats = useMemo(() => {
@@ -429,10 +491,10 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
   }, [rows]);
 
 
-  // Convert rows to products for batch edit (only from filtered/searched rows)
+  // Convert rows to products for batch edit (only from filtered/searched/sorted rows)
   const selectedProducts = useMemo((): Product[] => {
     return Array.from(selectedRows).map(rowId => {
-      const row = searchFilteredRows.find(r => r.id === rowId);
+      const row = sortedRows.find(r => r.id === rowId);
       if (!row) return null;
       
       return {
@@ -448,18 +510,18 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
         subSegment: row.hierarchy?.level6
       };
     }).filter(Boolean) as Product[];
-  }, [selectedRows, searchFilteredRows]);
+  }, [selectedRows, sortedRows]);
 
   const handleSelectAll = useCallback((checked: boolean) => {
     if (checked) {
-      const allFilteredIds = new Set(searchFilteredRows.map(row => row.id));
+      const allFilteredIds = new Set(sortedRows.map(row => row.id));
       setSelectedRows(allFilteredIds);
       onSelectRows(Array.from(allFilteredIds));
     } else {
       setSelectedRows(new Set());
       onSelectRows([]);
     }
-  }, [searchFilteredRows, onSelectRows]);
+  }, [sortedRows, onSelectRows]);
 
   const handleRowSelect = useCallback((rowId: string, selected: boolean) => {
     const newSelection = new Set(selectedRows);
@@ -479,8 +541,8 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
 
   const handleBatchUpdate = useCallback(async (updates: any) => {
     const updatedRows = rows.map(row => {
-      // Only update rows that are both selected AND in the current search results
-      if (selectedRows.has(row.id) && searchFilteredRows.some(filteredRow => filteredRow.id === row.id)) {
+      // Only update rows that are both selected AND in the current sorted results
+      if (selectedRows.has(row.id) && sortedRows.some(sortedRow => sortedRow.id === row.id)) {
         const newHierarchy = {
           ...row.hierarchy,
           level1: updates.category || row.hierarchy?.level1,
@@ -720,7 +782,7 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
           </div>
           {searchQuery && (
             <Badge variant="secondary">
-              {searchFilteredRows.length} of {filteredRows.length} rows
+              {sortedRows.length} of {filteredRows.length} rows
             </Badge>
           )}
         </div>
@@ -743,19 +805,28 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
                     zIndex: column.key === 'clear' ? 11 : 10,
                   }}
                 >
-                  {column.key === 'checkbox' ? (
+                   {column.key === 'checkbox' ? (
                     <Checkbox
                       checked={isAllSelected}
                       onCheckedChange={handleSelectAll}
                       aria-label="Select all rows"
                     />
+                  ) : column.key === 'clear' ? (
+                    <span className="text-xs text-muted-foreground">Clear</span>
                   ) : column.isCustom ? (
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="truncate">{column.label}</span>
+                    <div className="flex items-center justify-between gap-1 min-w-0">
+                      <SortableHeader
+                        label={column.label}
+                        sortKey={column.key}
+                        currentSort={sortConfig}
+                        onSort={handleSort}
+                        width={column.width - 30}
+                        className="flex-1 min-w-0"
+                      />
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-4 w-4 p-0 hover:bg-destructive/10"
+                        className="h-4 w-4 p-0 hover:bg-destructive/10 flex-shrink-0"
                         onClick={() => removeColumn(column.key)}
                         aria-label={`Delete ${column.label} column`}
                       >
@@ -763,14 +834,20 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
                       </Button>
                     </div>
                   ) : (
-                    column.label
+                    <SortableHeader
+                      label={column.label}
+                      sortKey={column.key}
+                      currentSort={sortConfig}
+                      onSort={handleSort}
+                      width={column.width}
+                    />
                   )}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {searchFilteredRows.map((row) => (
+            {sortedRows.map((row) => (
               <tr key={row.id} className="border-b border-border hover:bg-muted/50">
                 {columns.map((column) => (
                   <td

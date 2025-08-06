@@ -11,6 +11,7 @@ import { useToast } from '../hooks/use-toast';
 import { Shuffle, Database, Download, RotateCcw, FileDown, Save, RefreshCw } from 'lucide-react';
 import { saveMappingData, loadMappingData, clearMappingData, hasSavedData, getLastSavedTime, AutoSaveManager } from '../utils/mappingPersistence';
 import { useCustomColumns } from '../hooks/useCustomColumns';
+import { CSVColumnPreviewDialog } from '../components/CSVColumnPreviewDialog';
 import logo from '../assets/logo.svg';
 
 const Index = () => {
@@ -23,6 +24,22 @@ const Index = () => {
   const { toast } = useToast();
   const { customColumns, addColumn, setValue } = useCustomColumns();
   const autoSaveManagerRef = useRef<AutoSaveManager | null>(null);
+  
+  const [csvPreviewDialog, setCsvPreviewDialog] = useState<{
+    isOpen: boolean;
+    detectedColumns: Array<{
+      name: string;
+      dataType: 'text' | 'number';
+      sampleValues: string[];
+    }>;
+    csvData: any[];
+    fileName: string;
+  }>({
+    isOpen: false,
+    detectedColumns: [],
+    csvData: [],
+    fileName: ''
+  });
 
   // Initialize auto-save manager (silent auto-save)
   useEffect(() => {
@@ -70,140 +87,189 @@ const Index = () => {
     return helper;
   }, [hierarchyRules]);
 
+  const detectDataType = (values: any[]): 'text' | 'number' => {
+    const sampleValues = values.slice(0, 10).filter(val => val != null && val !== '');
+    if (sampleValues.length === 0) return 'text';
+    
+    const numericCount = sampleValues.filter(val => {
+      const num = Number(val);
+      return !isNaN(num) && isFinite(num);
+    }).length;
+    
+    return numericCount / sampleValues.length >= 0.7 ? 'number' : 'text';
+  };
+
   const handleProductsUpload = useCallback(async (data: any[], fileName: string) => {
     try {
-      // Define core columns more precisely
+      console.log('Processing products:', data.length, 'rows');
+      
+      if (data.length === 0) {
+        toast({
+          title: "No data found",
+          description: "The CSV file appears to be empty.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Define core columns that shouldn't be treated as custom columns
       const coreColumns = new Set([
-        'id', 'ID', 'title', 'Title', 'name', 'Name', 
-        'brand', 'Brand', 'url', 'URL', 'sku', 'SKU',
-        'category', 'subcategory', 'bigC', 'smallC', 'segment', 'subSegment'
+        'id', 'ID', 'title', 'Title', 'name', 'Name', 'brand', 'Brand', 
+        'url', 'URL', 'category', 'subcategory', 'bigC', 'smallC', 'segment', 'subSegment'
       ]);
-      
-      // Detect new custom columns and create them efficiently
-      const newColumnsToCreate: Array<{ name: string; dataType: 'text' | 'number' }> = [];
-      const customColumnValues: Array<{ rowId: string; columnName: string; value: string }> = [];
-      
-      if (data.length > 0) {
-        const csvColumns = Object.keys(data[0]).filter(col => 
-          col.trim() !== '' && !coreColumns.has(col)
-        );
-        
-        const existingCustomColumnNames = new Set(customColumns.map(col => col.name));
-        
-        // Identify truly new columns
-        const newColumnNames = csvColumns.filter(col => !existingCustomColumnNames.has(col));
-        
-        // Determine data types for new columns
-        newColumnNames.forEach(columnName => {
-          let dataType: 'text' | 'number' = 'text';
-          // Check first 5 non-empty values to determine type
-          for (let i = 0; i < Math.min(5, data.length); i++) {
-            const value = data[i][columnName];
-            if (value && String(value).trim() !== '') {
-              const numValue = Number(value);
-              if (!isNaN(numValue) && isFinite(numValue)) {
-                dataType = 'number';
-                break;
-              }
-            }
-          }
-          newColumnsToCreate.push({ name: columnName, dataType });
-        });
-      }
 
-      // Create new columns first (batch operation)
-      const newColumnIds: Record<string, string> = {};
-      newColumnsToCreate.forEach(({ name, dataType }) => {
-        const columnId = `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        newColumnIds[name] = columnId;
-        addColumn({ name, dataType, width: 150 });
-      });
-
-      // Process products and collect custom column values
-      const processedProducts: Product[] = [];
-      const allCustomColumnNames = [...customColumns.map(col => col.name), ...newColumnsToCreate.map(col => col.name)];
+      // Detect new columns
+      const csvHeaders = Object.keys(data[0]);
+      const existingCustomHeaders = customColumns.map(col => col.name);
+      const newHeaders = csvHeaders.filter(header => 
+        !coreColumns.has(header) && !existingCustomHeaders.includes(header)
+      );
       
-      // Use larger chunks since we're not doing complex operations per item
-      const chunkSize = Math.min(1000, data.length);
-      
-      for (let i = 0; i < data.length; i += chunkSize) {
-        const chunk = data.slice(i, i + chunkSize);
-        
-        const processedChunk = chunk.map((row, index) => {
-          const productId = row.id || row.ID || `product-${i + index}`;
+      if (newHeaders.length > 0) {
+        // Analyze new columns
+        const detectedColumns = newHeaders.map(header => {
+          const allValues = data.map(row => row[header]).filter(val => val != null);
+          const sampleValues = [...new Set(allValues.slice(0, 10))].map(String);
+          const dataType = detectDataType(allValues);
           
-          // Extract core product data
-          const product = {
-            id: productId,
-            title: row.title || row.Title || row.name || row.Name || '',
-            brand: row.brand || row.Brand || '',
-            url: row.url || row.URL || '',
-            category: row.category,
-            subcategory: row.subcategory,
-            bigC: row.bigC,
-            smallC: row.smallC,
-            segment: row.segment,
-            subSegment: row.subSegment
+          return {
+            name: header,
+            dataType,
+            sampleValues
           };
+        });
 
-          // Collect custom column values for batch processing
-          allCustomColumnNames.forEach(columnName => {
-            const csvValue = row[columnName];
-            if (csvValue !== undefined && csvValue !== '' && String(csvValue).trim() !== '') {
-              customColumnValues.push({
-                rowId: productId,
-                columnName,
-                value: String(csvValue).trim()
-              });
-            }
-          });
-
-          return product;
+        // Show preview dialog
+        setCsvPreviewDialog({
+          isOpen: true,
+          detectedColumns,
+          csvData: data,
+          fileName
         });
         
-        processedProducts.push(...processedChunk);
-        
-        // Yield control every few chunks to keep UI responsive
-        if (i + chunkSize < data.length && (i / chunkSize) % 3 === 0) {
-          await new Promise<void>(resolve => {
-            setTimeout(() => resolve(), 5);
-          });
-        }
+        return; // Wait for user confirmation
       }
+
+      // Process products if no new columns
+      await processProductsData(data, fileName);
       
-      // Set products first
-      setProducts(processedProducts);
-      setProductsFileName(fileName);
-      
-      // Batch set custom column values after a small delay to ensure columns exist
-      setTimeout(() => {
-        const allColumns = [...customColumns, ...newColumnsToCreate.map(col => ({
-          id: newColumnIds[col.name],
-          name: col.name,
-          dataType: col.dataType,
-          width: 150
-        }))];
-        
-        customColumnValues.forEach(({ rowId, columnName, value }) => {
-          const column = allColumns.find(col => col.name === columnName);
-          if (column) {
-            setValue(rowId, column.id, value);
-          }
-        });
-      }, 100);
-      
-      toast({
-        title: "Products loaded successfully",
-        description: `Loaded ${data.length} products from ${fileName}`,
-      });
     } catch (error) {
+      console.error('Error processing products:', error);
       toast({
         title: "Error processing products",
         description: "Please check your CSV format and try again.",
         variant: "destructive",
       });
     }
-  }, [toast, customColumns, addColumn, setValue]);
+  }, [toast, customColumns]);
+
+  const processProductsData = useCallback(async (data: any[], fileName: string, selectedNewColumns?: string[]) => {
+    try {
+      // Define core columns
+      const coreColumns = new Set([
+        'id', 'ID', 'title', 'Title', 'name', 'Name', 'brand', 'Brand', 
+        'url', 'URL', 'category', 'subcategory', 'bigC', 'smallC', 'segment', 'subSegment'
+      ]);
+
+      // Add selected new columns first
+      const newColumnIds: Record<string, string> = {};
+      if (selectedNewColumns && selectedNewColumns.length > 0) {
+        selectedNewColumns.forEach(header => {
+          const allValues = data.map(row => row[header]).filter(val => val != null);
+          const dataType = detectDataType(allValues);
+          
+          const columnId = `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          newColumnIds[header] = columnId;
+          
+          addColumn({
+            name: header,
+            dataType,
+            defaultValue: '',
+            width: 120
+          });
+        });
+        
+        // Wait for columns to be created
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      // Process products
+      const processedProducts: Product[] = [];
+      const chunkSize = 100;
+      
+      for (let i = 0; i < data.length; i += chunkSize) {
+        const chunk = data.slice(i, i + chunkSize);
+        
+        const chunkProducts = chunk.map((row, index) => ({
+          id: row.id || row.ID || row.productId || row.sku || `product-${i + index + 1}`,
+          title: row.title || row.Title || row.name || row.Name || row.productName || '',
+          brand: row.brand || row.Brand || '',
+          url: row.url || row.URL || row.link || ''
+        }));
+        
+        processedProducts.push(...chunkProducts);
+        
+        // Yield control
+        if (i % (chunkSize * 2) === 0) {
+          await new Promise(resolve => setTimeout(resolve, 1));
+        }
+      }
+
+      setProducts(processedProducts);
+      setProductsFileName(fileName);
+
+      // Map custom column values after products are set
+      if (selectedNewColumns && selectedNewColumns.length > 0) {
+        setTimeout(() => {
+          data.forEach((row, index) => {
+            const productId = processedProducts[index]?.id;
+            if (!productId) return;
+
+            selectedNewColumns.forEach(header => {
+              const value = row[header];
+              if (value != null && value !== '') {
+                setValue(productId, newColumnIds[header], String(value));
+              }
+            });
+          });
+        }, 200);
+      }
+      
+      toast({
+        title: "Products loaded successfully",
+        description: `Loaded ${processedProducts.length} products from ${fileName}`,
+      });
+
+    } catch (error) {
+      console.error('Error processing products data:', error);
+      toast({
+        title: "Error processing products",
+        description: "Please check your CSV format and try again.",
+        variant: "destructive",
+      });
+    }
+  }, [addColumn, setValue, toast]);
+
+  const handleCSVPreviewConfirm = useCallback((selectedColumns: string[]) => {
+    processProductsData(csvPreviewDialog.csvData, csvPreviewDialog.fileName, selectedColumns);
+    setCsvPreviewDialog({
+      isOpen: false,
+      detectedColumns: [],
+      csvData: [],
+      fileName: ''
+    });
+  }, [csvPreviewDialog, processProductsData]);
+
+  const handleCSVPreviewClose = useCallback(() => {
+    // Process without new columns
+    processProductsData(csvPreviewDialog.csvData, csvPreviewDialog.fileName, []);
+    setCsvPreviewDialog({
+      isOpen: false,
+      detectedColumns: [],
+      csvData: [],
+      fileName: ''
+    });
+  }, [csvPreviewDialog, processProductsData]);
 
   const handleHierarchyUpload = (data: any[], fileName: string) => {
     try {
@@ -772,6 +838,14 @@ const Index = () => {
             </div>
           </Card>
         )}
+
+        {/* CSV Column Preview Dialog */}
+        <CSVColumnPreviewDialog
+          isOpen={csvPreviewDialog.isOpen}
+          onClose={handleCSVPreviewClose}
+          onConfirm={handleCSVPreviewConfirm}
+          detectedColumns={csvPreviewDialog.detectedColumns}
+        />
       </div>
     </div>
   );
