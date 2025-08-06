@@ -13,6 +13,8 @@ import { RowData, ProductHierarchyMappingTableProps } from '../types/productTabl
 import BatchEditForm from './BatchEditForm';
 import { Product, ClassificationLevel, FilterState } from '../types/mapping';
 import { OptimizedHierarchyHelper } from '../utils/optimizedHierarchyHelper';
+import AddColumnModal from './AddColumnModal';
+import { useCustomColumns } from '../hooks/useCustomColumns';
 
 const AutocompleteCell: React.FC<{
   value: string;
@@ -309,6 +311,9 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
   const [showIncomplete, setShowIncomplete] = useState(false);
   const [isBatchEditOpen, setIsBatchEditOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Custom columns hook
+  const { customColumns, addColumn, removeColumn, updateColumnWidth, getValue, setValue } = useCustomColumns();
 
   // Use external hierarchy helper if provided, otherwise create from options
   const hierarchyHelper = useMemo(() => {
@@ -354,20 +359,36 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
     return new OptimizedHierarchyHelper(rules);
   }, [externalHierarchyHelper, hierarchyOptions]);
 
-  const columns = [
-    { key: 'checkbox', label: '', width: 50 },
-    { key: 'name', label: 'Product Name', width: 200 },
-    { key: 'sku', label: 'SKU/ID', width: 120 },
-    { key: 'brand', label: 'Brand', width: 120 },
-    { key: 'url', label: 'URL', width: 150 },
-    { key: 'level1', label: 'Category', width: 140 },
-    { key: 'level2', label: 'Subcategory', width: 140 },
-    { key: 'level3', label: 'Big C', width: 120 },
-    { key: 'level4', label: 'Small C', width: 120 },
-    { key: 'level5', label: 'Segment', width: 120 },
-    { key: 'level6', label: 'Sub-segment', width: 130 },
-    { key: 'clear', label: '', width: 60 },
-  ];
+  // Combine base columns with custom columns
+  const columns = useMemo(() => {
+    const baseColumns = [
+      { key: 'checkbox', label: '', width: 50, isCustom: false },
+      { key: 'name', label: 'Product Name', width: 200, isCustom: false },
+      { key: 'sku', label: 'SKU/ID', width: 120, isCustom: false },
+      { key: 'brand', label: 'Brand', width: 120, isCustom: false },
+      { key: 'url', label: 'URL', width: 150, isCustom: false },
+      { key: 'level1', label: 'Category', width: 140, isCustom: false },
+      { key: 'level2', label: 'Subcategory', width: 140, isCustom: false },
+      { key: 'level3', label: 'Big C', width: 120, isCustom: false },
+      { key: 'level4', label: 'Small C', width: 120, isCustom: false },
+      { key: 'level5', label: 'Segment', width: 120, isCustom: false },
+      { key: 'level6', label: 'Sub-segment', width: 130, isCustom: false },
+      { key: 'clear', label: '', width: 60, isCustom: false },
+    ];
+    
+    // Add custom columns before the clear column
+    const customCols = customColumns.map(col => ({
+      key: col.id,
+      label: col.name,
+      width: col.width,
+      isCustom: true,
+      dataType: col.dataType
+    }));
+    
+    // Insert custom columns before the clear column
+    const result = [...baseColumns.slice(0, -1), ...customCols, baseColumns[baseColumns.length - 1]];
+    return result;
+  }, [customColumns]);
 
   // Filter rows based on show incomplete
   const filteredRows = useMemo(() => {
@@ -642,6 +663,8 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
           </div>
           
           <div className="flex items-center gap-2">
+            <AddColumnModal onAddColumn={addColumn} />
+            
             <Button
               variant="outline"
               size="sm"
@@ -726,6 +749,19 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
                       onCheckedChange={handleSelectAll}
                       aria-label="Select all rows"
                     />
+                  ) : column.isCustom ? (
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="truncate">{column.label}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-4 w-4 p-0 hover:bg-destructive/10"
+                        onClick={() => removeColumn(column.key)}
+                        aria-label={`Delete ${column.label} column`}
+                      >
+                        <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                      </Button>
+                    </div>
                   ) : (
                     column.label
                   )}
@@ -772,6 +808,13 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
                         hierarchyHelper={hierarchyHelper}
                         onRowUpdate={handleRowUpdate}
                         hierarchyOptions={hierarchyOptions}
+                      />
+                    )}
+
+                    {column.isCustom && (
+                      <TooltipCell
+                        value={getValue(row.id, column.key)}
+                        onChange={(value) => setValue(row.id, column.key, value)}
                       />
                     )}
 
