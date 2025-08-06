@@ -16,6 +16,7 @@ import { OptimizedHierarchyHelper } from '../utils/optimizedHierarchyHelper';
 import AddColumnModal from './AddColumnModal';
 import { useCustomColumns } from '../hooks/useCustomColumns';
 import { SortableHeader, SortDirection } from './SortableHeader';
+import URLCell from './URLCell';
 
 const AutocompleteCell: React.FC<{
   value: string;
@@ -870,7 +871,14 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
                       />
                     )}
 
-                    {(column.key === 'name' || column.key === 'sku' || column.key === 'brand' || column.key === 'url') && (
+                    {column.key === 'url' && (
+                      <URLCell
+                        value={row[column.key as keyof RowData] as string || ''}
+                        onChange={(value) => updateField(row.id, column.key, value)}
+                      />
+                    )}
+
+                    {(column.key === 'name' || column.key === 'sku' || column.key === 'brand') && (
                       <TooltipCell
                         value={row[column.key as keyof RowData] as string || ''}
                         onChange={(value) => updateField(row.id, column.key, value)}
