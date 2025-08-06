@@ -42,12 +42,13 @@ export const useCustomColumns = () => {
     }
   }, [customValues]);
 
-  const addColumn = useCallback((column: Omit<CustomColumn, 'id'>) => {
+  const addColumn = useCallback((column: Omit<CustomColumn, 'id'>): string => {
     const newColumn: CustomColumn = {
       ...column,
       id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     };
     setCustomColumns(prev => [...prev, newColumn]);
+    return newColumn.id; // Return the generated ID
   }, []);
 
   const removeColumn = useCallback((columnId: string) => {

@@ -171,26 +171,33 @@ const Index = () => {
         'url', 'URL', 'category', 'subcategory', 'bigC', 'smallC', 'segment', 'subSegment'
       ]);
 
-      // Add selected new columns first
+      // Add selected new columns first and track their IDs
       const newColumnIds: Record<string, string> = {};
       if (selectedNewColumns && selectedNewColumns.length > 0) {
-        selectedNewColumns.forEach(header => {
+        console.log('Adding new columns:', selectedNewColumns);
+        
+        for (const header of selectedNewColumns) {
           const allValues = data.map(row => row[header]).filter(val => val != null);
           const dataType = detectDataType(allValues);
           
-          const columnId = `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-          newColumnIds[header] = columnId;
+          console.log(`Creating column "${header}" with type ${dataType}, sample values:`, allValues.slice(0, 3));
           
-          addColumn({
+          const newColumn = {
             name: header,
             dataType,
             defaultValue: '',
             width: 120
-          });
-        });
+          };
+          
+          // Add column and get the actual ID
+          const columnId = addColumn(newColumn);
+          newColumnIds[header] = columnId;
+          
+          console.log(`Created column "${header}" with ID: ${columnId}`);
+        }
         
-        // Wait for columns to be created
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Wait longer for columns to be created and UI to update
+        await new Promise(resolve => setTimeout(resolve, 300));
       }
 
       // Process products
@@ -220,19 +227,31 @@ const Index = () => {
 
       // Map custom column values after products are set
       if (selectedNewColumns && selectedNewColumns.length > 0) {
+        console.log('Mapping values for new columns:', selectedNewColumns);
+        console.log('Column ID mapping:', newColumnIds);
+        
         setTimeout(() => {
           data.forEach((row, index) => {
             const productId = processedProducts[index]?.id;
-            if (!productId) return;
+            if (!productId) {
+              console.warn(`No product ID found for row ${index}`);
+              return;
+            }
 
             selectedNewColumns.forEach(header => {
               const value = row[header];
               if (value != null && value !== '') {
-                setValue(productId, newColumnIds[header], String(value));
+                const columnId = newColumnIds[header];
+                if (columnId) {
+                  console.log(`Setting value "${value}" for product ${productId}, column ${header} (${columnId})`);
+                  setValue(productId, columnId, String(value));
+                } else {
+                  console.warn(`Column ID not found for header: ${header}`);
+                }
               }
             });
           });
-        }, 200);
+        }, 300); // Wait for state updates
       }
       
       toast({

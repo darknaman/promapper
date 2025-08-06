@@ -210,20 +210,15 @@ async function parseCsvFile({ file, expectedHeaders, fileType }) {
             
             const processedBatch = batch.map((row, index) => {
               if (fileType === 'products') {
+                // Keep ALL original CSV columns for custom column detection
+                console.log('Worker processing CSV row with headers:', Object.keys(row));
                 return {
-                  id: row.id || row.ID || `product-${processedRows + i + index}`,
-                  name: row.name || row.title || row.Title || row.Name || '',
-                  sku: row.sku || row.SKU || row.id || row.ID || '',
+                  ...row, // Preserve all original CSV columns
+                  // Ensure core fields have fallbacks
+                  id: row.id || row.ID || row.productId || row.sku || `product-${processedRows + i + index}`,
+                  title: row.title || row.Title || row.name || row.Name || row.productName || '',
                   brand: row.brand || row.Brand || '',
-                  url: row.url || row.URL || '',
-                  hierarchy: {
-                    level1: undefined, // category
-                    level2: undefined, // subcategory
-                    level3: undefined, // bigC
-                    level4: undefined, // smallC
-                    level5: undefined, // segment
-                    level6: undefined  // subSegment
-                  }
+                  url: row.url || row.URL || row.link || ''
                 };
               } else {
                 return {

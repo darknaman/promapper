@@ -129,22 +129,18 @@ const FileUpload: React.FC<FileUploadProps> = ({
         for (let i = 0; i < chunkData.length; i += batchSize) {
           const batch = chunkData.slice(i, i + batchSize);
           
+          // For products, keep ALL original CSV columns to allow custom column detection
           const processedBatch = batch.map((row: any, index: number) => {
             if (fileType === 'products') {
+              // Return the complete row with all original CSV columns
+              console.log('Processing CSV row with headers:', Object.keys(row));
               return {
-                id: row.id || row.ID || `product-${processedRows + i + index}`,
-                name: row.name || row.title || row.Title || row.Name || '',
-                sku: row.sku || row.SKU || row.id || row.ID || '',
+                ...row, // Keep all original CSV columns
+                // Ensure core fields have fallbacks
+                id: row.id || row.ID || row.productId || row.sku || `product-${processedRows + i + index}`,
+                title: row.title || row.Title || row.name || row.Name || row.productName || '',
                 brand: row.brand || row.Brand || '',
-                url: row.url || row.URL || '',
-                hierarchy: {
-                  level1: undefined, // category
-                  level2: undefined, // subcategory
-                  level3: undefined, // bigC
-                  level4: undefined, // smallC
-                  level5: undefined, // segment
-                  level6: undefined  // subSegment
-                }
+                url: row.url || row.URL || row.link || ''
               };
             } else {
               return {
