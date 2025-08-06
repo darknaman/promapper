@@ -164,25 +164,17 @@ async function parseCsvFile({ file, expectedHeaders, fileType }) {
     let estimatedMemoryUsage = 0;
     let lastProgressTime = Date.now();
     let isFirstChunk = true;
-    let processingBuffer = [];
     
-    // Calculate optimal chunk size based on file size and available memory
+    // Calculate optimal chunk size based on file size
     const fileSizeMB = file.size / (1024 * 1024);
     let chunkSize;
-    let batchProcessingSize;
     
-    if (fileSizeMB > 100) {
-      chunkSize = 1024 * 128; // 128KB for very large files
-      batchProcessingSize = 500;
-    } else if (fileSizeMB > 50) {
-      chunkSize = 1024 * 256; // 256KB for large files
-      batchProcessingSize = 1000;
+    if (fileSizeMB > 50) {
+      chunkSize = 1024 * 256; // 256KB for very large files
     } else if (fileSizeMB > 10) {
-      chunkSize = 1024 * 512; // 512KB for medium files  
-      batchProcessingSize = 2000;
+      chunkSize = 1024 * 512; // 512KB for large files  
     } else {
       chunkSize = 1024 * 1024; // 1MB for smaller files
-      batchProcessingSize = 5000;
     }
 
     Papa.parse(file, {
@@ -209,19 +201,17 @@ async function parseCsvFile({ file, expectedHeaders, fileType }) {
             }
           }
         
-          // Process chunk data with optimized memory-aware batching
+          // Process chunk data with memory-aware batching
           const processedChunk = [];
+          const batchSize = Math.min(1000, Math.max(100, Math.floor(10000 / (fileSizeMB || 1)))); // Dynamic batch size
           
-          // Use adaptive batch processing based on file size and memory constraints
-          for (let i = 0; i < chunk.data.length; i += batchProcessingSize) {
-            const batch = chunk.data.slice(i, i + batchProcessingSize);
+          for (let i = 0; i < chunk.data.length; i += batchSize) {
+            const batch = chunk.data.slice(i, i + batchSize);
             
             const processedBatch = batch.map((row, index) => {
               if (fileType === 'products') {
                 // Keep ALL original CSV columns for custom column detection
-                if (isFirstChunk && index === 0) {
-                  console.log('Worker processing CSV row with headers:', Object.keys(row));
-                }
+                console.log('Worker processing CSV row with headers:', Object.keys(row));
                 return {
                   ...row, // Preserve all original CSV columns
                   // Ensure core fields have fallbacks
@@ -242,30 +232,12 @@ async function parseCsvFile({ file, expectedHeaders, fileType }) {
               }
             });
             
-            // Add to processing buffer for better memory management
-            processingBuffer.push(...processedBatch);
-            
-            // Batch commit to results when buffer reaches threshold
-            if (processingBuffer.length >= batchProcessingSize * 2) {
-              results.push(...processingBuffer);
-              processingBuffer = [];
-              
-              // Force garbage collection hint
-              if (typeof self !== 'undefined' && self.gc) {
-                self.gc();
-              }
-            }
+            processedChunk.push(...processedBatch);
             
             // Yield control periodically to prevent blocking
-            if (i % (batchProcessingSize / 2) === 0) {
-              await new Promise(resolve => requestIdleCallback ? requestIdleCallback(resolve) : setTimeout(resolve, 0));
+            if (i % 2000 === 0) {
+              await new Promise(resolve => setTimeout(resolve, 0));
             }
-          }
-          
-          // Commit remaining buffer
-          if (processingBuffer.length > 0) {
-            processedChunk.push(...processingBuffer);
-            processingBuffer = [];
           }
 
           results.push(...processedChunk);

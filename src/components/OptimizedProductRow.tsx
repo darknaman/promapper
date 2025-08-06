@@ -1,4 +1,4 @@
-import React, { memo, useMemo, useCallback, useState } from 'react';
+import React, { memo, useMemo, useCallback } from 'react';
 import { Product, ClassificationLevel, FilterState } from '../types/mapping';
 import { OptimizedHierarchyHelper } from '../utils/optimizedHierarchyHelper';
 import CascadingSelect from './CascadingSelect';
@@ -30,8 +30,6 @@ const OptimizedProductRow: React.FC<OptimizedProductRowProps> = memo(({
   onProductUpdate,
   columnWidths
 }) => {
-  const [isEditing, setIsEditing] = useState<Record<string, boolean>>({});
-  
   const classifications: ClassificationLevel[] = useMemo(() => 
     ['category', 'subcategory', 'bigC', 'smallC', 'segment', 'subSegment'], []);
 
@@ -43,10 +41,6 @@ const OptimizedProductRow: React.FC<OptimizedProductRowProps> = memo(({
     segment: product.segment,
     subSegment: product.subSegment
   }), [product]);
-
-  const handleInputChange = useCallback((field: keyof Product, value: string) => {
-    onProductUpdate(product.id, { ...product, [field]: value });
-  }, [product.id, onProductUpdate]);
 
   const handleClassificationChange = useCallback((level: ClassificationLevel, value: string | null) => {
     const updatedProduct = { ...product, [level]: value || undefined };
@@ -98,29 +92,29 @@ const OptimizedProductRow: React.FC<OptimizedProductRowProps> = memo(({
   }, [columnWidths]);
 
   return (
-    <div className={`grid gap-2 p-1 border-b ${isComplete ? 'bg-green-50/30' : ''}`} style={{ gridTemplateColumns }}>
+    <div className={`grid gap-2 p-1 border-b ${isComplete ? 'bg-green-50' : ''}`} style={{ gridTemplateColumns }}>
       <input 
-        className="text-xs p-1 border rounded bg-background text-foreground transition-colors" 
+        className="text-xs p-1 border rounded bg-background text-foreground" 
         value={product.id} 
-        onChange={(e) => handleInputChange('id', e.target.value)}
+        onChange={(e) => onProductUpdate(product.id, { ...product, id: e.target.value })}
         title={product.id}
       />
       <input 
-        className="text-xs p-1 border rounded bg-background text-foreground transition-colors" 
+        className="text-xs p-1 border rounded bg-background text-foreground" 
         value={product.title} 
-        onChange={(e) => handleInputChange('title', e.target.value)}
+        onChange={(e) => onProductUpdate(product.id, { ...product, title: e.target.value })}
         title={product.title}
       />
       <input 
-        className="text-xs p-1 border rounded bg-background text-foreground transition-colors" 
+        className="text-xs p-1 border rounded bg-background text-foreground" 
         value={product.brand || ''} 
-        onChange={(e) => handleInputChange('brand', e.target.value)}
+        onChange={(e) => onProductUpdate(product.id, { ...product, brand: e.target.value })}
         title={product.brand || ''}
       />
       <input 
-        className="text-xs p-1 border rounded bg-background text-foreground transition-colors" 
+        className="text-xs p-1 border rounded bg-background text-foreground" 
         value={product.url || ''} 
-        onChange={(e) => handleInputChange('url', e.target.value)}
+        onChange={(e) => onProductUpdate(product.id, { ...product, url: e.target.value })}
         title={product.url || ''}
       />
       
@@ -140,7 +134,7 @@ const OptimizedProductRow: React.FC<OptimizedProductRowProps> = memo(({
         variant="ghost"
         size="sm"
         onClick={clearAllMappings}
-        className="h-8 w-8 p-0 hover:bg-destructive/10 transition-colors"
+        className="h-8 w-8 p-0 hover:bg-destructive/10"
         title="Clear all mappings"
       >
         <Trash2 className="h-3 w-3 text-destructive" />
