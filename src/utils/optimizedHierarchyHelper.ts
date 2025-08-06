@@ -180,15 +180,55 @@ export class OptimizedHierarchyHelper {
   }
 
   /**
-   * Auto-complete selections when only one option remains
+   * Auto-complete selections with bidirectional hierarchy filling
    */
   autoCompleteSelections(selections: FilterState): FilterState {
     const newSelections = { ...selections };
     const levels: ClassificationLevel[] = ['category', 'subcategory', 'bigC', 'smallC', 'segment', 'subSegment'];
     
+    // Find the deepest level that has a selection to start from
+    let deepestSelectedLevel = -1;
+    for (let i = levels.length - 1; i >= 0; i--) {
+      if (newSelections[levels[i]]) {
+        deepestSelectedLevel = i;
+        break;
+      }
+    }
+
+    // If we have a selection, try to auto-complete the entire hierarchy
+    if (deepestSelectedLevel >= 0) {
+      const validRules = this.getValidRules(newSelections);
+      
+      if (validRules.length === 1) {
+        // Perfect match - auto-fill all levels
+        const rule = validRules[0];
+        levels.forEach(level => {
+          if (rule[level] && rule[level].trim()) {
+            newSelections[level] = rule[level];
+          }
+        });
+      } else if (validRules.length > 1) {
+        // Multiple matches - fill in common values where all rules agree
+        levels.forEach(level => {
+          if (!newSelections[level]) {
+            const uniqueValues = new Set(
+              validRules
+                .map(rule => rule[level])
+                .filter(value => value && value.trim())
+            );
+            
+            if (uniqueValues.size === 1) {
+              newSelections[level] = Array.from(uniqueValues)[0];
+            }
+          }
+        });
+      }
+    }
+
+    // Iterative auto-completion for remaining fields
     let hasChanges = true;
     let iterations = 0;
-    const maxIterations = 10; // Prevent infinite loops
+    const maxIterations = 10;
 
     while (hasChanges && iterations < maxIterations) {
       hasChanges = false;
@@ -206,6 +246,28 @@ export class OptimizedHierarchyHelper {
     }
     
     return newSelections;
+  }
+
+  /**
+   * Get auto-completion suggestions for a specific level
+   */
+  getAutoCompletionSuggestions(selections: FilterState, targetLevel: ClassificationLevel): DropdownOption[] {
+    const tempSelections = { ...selections };
+    delete tempSelections[targetLevel]; // Remove target level to get all possible values
+    
+    const validRules = this.getValidRules(tempSelections);
+    const suggestions = new Set<string>();
+    
+    validRules.forEach(rule => {
+      const value = rule[targetLevel];
+      if (value && value.trim()) {
+        suggestions.add(value.trim());
+      }
+    });
+    
+    return Array.from(suggestions)
+      .sort()
+      .map(value => ({ label: value, value }));
   }
 
   /**

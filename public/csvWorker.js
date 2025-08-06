@@ -154,83 +154,171 @@ self.onmessage = async function(e) {
 };
 
 /**
- * Parse CSV file using PapaParse with chunked processing
+ * Parse CSV file with enhanced processing and memory management
  */
 async function parseCsvFile({ file, expectedHeaders, fileType }) {
   return new Promise((resolve, reject) => {
     const results = [];
     let totalRows = 0;
     let processedRows = 0;
+    let estimatedMemoryUsage = 0;
+    let lastProgressTime = Date.now();
+    let isFirstChunk = true;
+    
+    // Calculate optimal chunk size based on file size
+    const fileSizeMB = file.size / (1024 * 1024);
+    let chunkSize;
+    
+    if (fileSizeMB > 50) {
+      chunkSize = 1024 * 256; // 256KB for very large files
+    } else if (fileSizeMB > 10) {
+      chunkSize = 1024 * 512; // 512KB for large files  
+    } else {
+      chunkSize = 1024 * 1024; // 1MB for smaller files
+    }
 
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
-      chunkSize: 1024 * 1024, // 1MB chunks for better memory management
-      chunk: function(chunk) {
-        totalRows += chunk.data.length;
+      chunkSize: chunkSize,
+      chunk: async function(chunk) {
+        try {
+          if (isFirstChunk) {
+            // Better row estimation
+            const avgRowSize = file.size / chunk.data.length;
+            totalRows = Math.min(Math.round(file.size / avgRowSize), 2000000); // Cap at 2M rows
+            isFirstChunk = false;
+            
+            // Inform about large file processing
+            if (fileSizeMB > 20) {
+              self.postMessage({
+                type: 'PARSE_PROGRESS',
+                progress: 0,
+                processedRows: 0,
+                totalRows,
+                message: `Processing large file (${fileSizeMB.toFixed(1)}MB)...`
+              });
+            }
+          }
         
-        // Process chunk data immediately but in smaller batches
-        const processedChunk = [];
-        const batchSize = 500;
-        
-        for (let i = 0; i < chunk.data.length; i += batchSize) {
-          const batch = chunk.data.slice(i, i + batchSize);
+          // Process chunk data with memory-aware batching
+          const processedChunk = [];
+          const batchSize = Math.min(1000, Math.max(100, Math.floor(10000 / (fileSizeMB || 1)))); // Dynamic batch size
           
-          const processedBatch = batch.map((row, index) => {
-            if (fileType === 'products') {
-              return {
-                id: row.id || row.ID || `product-${processedRows + i + index}`,
-                title: row.title || row.Title || '',
-                brand: row.brand || row.Brand || '',
-                url: row.url || row.URL || '',
-                category: undefined,
-                subcategory: undefined,
-                bigC: undefined,
-                smallC: undefined,
-                segment: undefined,
-                subSegment: undefined
-              };
-            } else {
-              return {
-                category: row.category || '',
-                subcategory: row.subcategory || '',
-                bigC: row.bigC || '',
-                smallC: row.smallC || '',
-                segment: row.segment || '',
-                subSegment: row.subSegment || ''
-              };
+          for (let i = 0; i < chunk.data.length; i += batchSize) {
+            const batch = chunk.data.slice(i, i + batchSize);
+            
+            const processedBatch = batch.map((row, index) => {
+              if (fileType === 'products') {
+                return {
+                  id: row.id || row.ID || `product-${processedRows + i + index}`,
+                  name: row.name || row.title || row.Title || row.Name || '',
+                  sku: row.sku || row.SKU || row.id || row.ID || '',
+                  brand: row.brand || row.Brand || '',
+                  url: row.url || row.URL || '',
+                  hierarchy: {
+                    level1: undefined, // category
+                    level2: undefined, // subcategory
+                    level3: undefined, // bigC
+                    level4: undefined, // smallC
+                    level5: undefined, // segment
+                    level6: undefined  // subSegment
+                  }
+                };
+              } else {
+                return {
+                  category: row.category || '',
+                  subcategory: row.subcategory || '',
+                  bigC: row.bigC || '',
+                  smallC: row.smallC || '',
+                  segment: row.segment || '',
+                  subSegment: row.subSegment || ''
+                };
+              }
+            });
+            
+            processedChunk.push(...processedBatch);
+            
+            // Yield control periodically to prevent blocking
+            if (i % 2000 === 0) {
+              await new Promise(resolve => setTimeout(resolve, 0));
+            }
+          }
+
+          results.push(...processedChunk);
+          processedRows += chunk.data.length;
+          
+          // Estimate memory usage (rough calculation)
+          estimatedMemoryUsage = results.length * 0.5; // KB per row
+          
+          // Memory management check
+          if (estimatedMemoryUsage > 512 * 1024) { // 512MB limit
+            self.postMessage({
+              type: 'PARSE_ERROR',
+              error: `File too large for memory (${(estimatedMemoryUsage/1024).toFixed(0)}MB). Please use a smaller file.`
+            });
+            return;
+          }
+
+          // Throttled progress updates (every 250ms for responsiveness)
+          const now = Date.now();
+          if (now - lastProgressTime > 250) {
+            const progress = Math.min(Math.round((processedRows / Math.max(totalRows, processedRows)) * 100), 100);
+            self.postMessage({
+              type: 'PARSE_PROGRESS',
+              progress,
+              processedRows,
+              totalRows: Math.max(totalRows, processedRows),
+              memoryUsage: Math.round(estimatedMemoryUsage / 1024) // MB
+            });
+            lastProgressTime = now;
+          }
+          
+        } catch (error) {
+          self.postMessage({
+            type: 'PARSE_ERROR',
+            error: `Chunk processing error: ${error.message}`
+          });
+          return;
+        }
+      },
+      complete: function() {
+        try {
+          if (results.length === 0) {
+            self.postMessage({
+              type: 'PARSE_ERROR',
+              error: 'No valid data found in CSV file. Please check the file format.'
+            });
+            return;
+          }
+          
+          console.log('CSV parsing complete. Total results:', results.length);
+          self.postMessage({
+            type: 'PARSE_COMPLETE',
+            data: results,
+            fileType,
+            stats: {
+              totalRows: results.length,
+              memoryUsage: Math.round(estimatedMemoryUsage / 1024), // MB
+              fileSize: fileSizeMB.toFixed(1)
             }
           });
           
-          processedChunk.push(...processedBatch);
+          resolve(results);
+          
+        } catch (error) {
+          self.postMessage({
+            type: 'PARSE_ERROR',
+            error: `Completion error: ${error.message}`
+          });
+          reject(error);
         }
-
-        results.push(...processedChunk);
-        processedRows += chunk.data.length;
-
-        // Update progress - throttle messages to avoid spam
-        const progress = Math.round((processedRows / Math.max(totalRows, 1)) * 100);
-        self.postMessage({
-          type: 'PARSE_PROGRESS',
-          progress,
-          processedRows,
-          totalRows
-        });
-      },
-      complete: function() {
-        console.log('CSV parsing complete. Total results:', results.length);
-        self.postMessage({
-          type: 'PARSE_COMPLETE',
-          data: results,
-          fileType
-        });
-        resolve(results);
       },
       error: function(error) {
         console.error('CSV parsing error:', error);
         self.postMessage({
           type: 'PARSE_ERROR',
-          error: error.message
+          error: `CSV parsing failed: ${error.message || error}`
         });
         reject(error);
       }

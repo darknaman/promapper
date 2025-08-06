@@ -38,7 +38,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
   }
 
   /**
-   * Enhanced file processing with Web Worker support and progress tracking
+   * Enhanced file processing with size validation and optimized Worker usage
    */
   const processFile = useCallback(async (file: File) => {
     if (!file.name.toLowerCase().endsWith('.csv')) {
@@ -50,31 +50,55 @@ const FileUpload: React.FC<FileUploadProps> = ({
       return;
     }
 
+    // File size validation
+    const fileSizeMB = file.size / (1024 * 1024);
+    
+    if (fileSizeMB > 50) {
+      toast({
+        title: "File too large",
+        description: "Maximum file size is 50MB. Please use a smaller file.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (fileSizeMB > 10) {
+      toast({
+        title: "Large file detected",
+        description: `File size: ${fileSizeMB.toFixed(1)}MB. Processing may take longer.`,
+      });
+    }
+
     setIsProcessing(true);
     setUploadProgress({ progress: 0 });
 
     try {
       const workerManager = workerManagerRef.current;
 
-      // Try Web Worker first, fallback to main thread if not available
-      if (workerManager && workerManager.isWorkerAvailable() && file.size > 1024 * 1024) { // Use worker for files > 1MB
-        const result = await workerManager.parseCsvFile(
-          file,
-          expectedHeaders,
-          fileType,
-          (progress) => {
-            setUploadProgress(progress);
-          }
-        );
+      // Use Web Worker for files > 1MB or when explicitly available
+      if (workerManager && workerManager.isWorkerAvailable() && fileSizeMB > 1) {
+        try {
+          const result = await workerManager.parseCsvFile(
+            file,
+            expectedHeaders,
+            fileType,
+            (progress) => {
+              setUploadProgress(progress);
+            }
+          );
 
-        onFileUpload(result.data as any[], file.name);
-        
-        toast({
-          title: "File processed successfully",
-          description: `Processed ${result.data.length} rows using Web Worker for optimal performance.`,
-        });
+          onFileUpload(result.data as any[], file.name);
+          
+          toast({
+            title: "File processed successfully",
+            description: `Processed ${result.data.length} rows using Web Worker (${fileSizeMB.toFixed(1)}MB).`,
+          });
+        } catch (workerError) {
+          console.warn('Web Worker failed, falling back to main thread:', workerError);
+          await processFileMainThread(file);
+        }
       } else {
-        // Fallback to main thread with chunked processing
+        // Use main thread for smaller files or when worker unavailable
         await processFileMainThread(file);
       }
     } catch (error) {
@@ -97,58 +121,80 @@ const FileUpload: React.FC<FileUploadProps> = ({
       let processedRows = 0;
       let isFirstChunk = true;
       let lastProgressUpdate = 0;
+      let lastYieldTime = Date.now();
+
+      const processChunk = async (chunkData: any[]) => {
+        const batchSize = 500; // Larger batches for efficiency
+        
+        for (let i = 0; i < chunkData.length; i += batchSize) {
+          const batch = chunkData.slice(i, i + batchSize);
+          
+          const processedBatch = batch.map((row: any, index: number) => {
+            if (fileType === 'products') {
+              return {
+                id: row.id || row.ID || `product-${processedRows + i + index}`,
+                name: row.name || row.title || row.Title || row.Name || '',
+                sku: row.sku || row.SKU || row.id || row.ID || '',
+                brand: row.brand || row.Brand || '',
+                url: row.url || row.URL || '',
+                hierarchy: {
+                  level1: undefined, // category
+                  level2: undefined, // subcategory
+                  level3: undefined, // bigC
+                  level4: undefined, // smallC
+                  level5: undefined, // segment
+                  level6: undefined  // subSegment
+                }
+              };
+            } else {
+              return {
+                category: row.category || '',
+                subcategory: row.subcategory || '',
+                bigC: row.bigC || '',
+                smallC: row.smallC || '',
+                segment: row.segment || '',
+                subSegment: row.subSegment || ''
+              };
+            }
+          });
+          
+          results.push(...processedBatch);
+          
+          // Yield control to main thread every 100ms
+          const now = Date.now();
+          if (now - lastYieldTime > 100) {
+            await new Promise(resolve => {
+              if (window.requestIdleCallback) {
+                requestIdleCallback(() => resolve(void 0));
+              } else {
+                setTimeout(() => resolve(void 0), 0);
+              }
+            });
+            lastYieldTime = now;
+          }
+        }
+      };
 
       Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
-        chunkSize: 1024 * 256, // Smaller chunks for better responsiveness
-        chunk: function(chunk) {
+        chunkSize: 1024 * 512, // Optimized chunk size
+        chunk: async function(chunk) {
           if (isFirstChunk) {
-            // Better estimation for total rows
-            const avgRowSize = file.size / chunk.data.length;
-            totalRows = Math.round(file.size / avgRowSize);
+            // Better row estimation
+            const estimatedRowSize = file.size / chunk.data.length;
+            totalRows = Math.min(Math.round(file.size / estimatedRowSize), 1000000); // Cap at 1M rows
             isFirstChunk = false;
           }
           
-          // Process chunk data in smaller batches
-          const batchSize = 100;
-          for (let i = 0; i < chunk.data.length; i += batchSize) {
-            const batch = chunk.data.slice(i, i + batchSize);
-            
-            const processedBatch = batch.map((row: any, index: number) => {
-              if (fileType === 'products') {
-                return {
-                  id: row.id || row.ID || `product-${processedRows + i + index}`,
-                  title: row.title || row.Title || '',
-                  brand: row.brand || row.Brand || '',
-                  url: row.url || row.URL || '',
-                  category: undefined,
-                  subcategory: undefined,
-                  bigC: undefined,
-                  smallC: undefined,
-                  segment: undefined,
-                  subSegment: undefined
-                };
-              } else {
-                return {
-                  category: row.category || '',
-                  subcategory: row.subcategory || '',
-                  bigC: row.bigC || '',
-                  smallC: row.smallC || '',
-                  segment: row.segment || '',
-                  subSegment: row.subSegment || ''
-                };
-              }
-            });
-            
-            results.push(...processedBatch);
-          }
+          // Process chunk asynchronously to maintain responsiveness
+          await processChunk(chunk.data);
           
           processedRows += chunk.data.length;
 
-          // Throttled progress updates (every 100ms)
+          // Throttled progress updates (every 200ms for better performance)
           const now = Date.now();
-          if (now - lastProgressUpdate > 100) {
+          if (now - lastProgressUpdate > 200) {
             const progress = Math.min(Math.round((processedRows / Math.max(totalRows, processedRows)) * 100), 100);
             setUploadProgress({
               progress,
@@ -162,16 +208,17 @@ const FileUpload: React.FC<FileUploadProps> = ({
           console.log('Main thread parsing complete. Total results:', results.length);
           onFileUpload(results, file.name);
           
+          const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
           toast({
             title: "File processed successfully",
-            description: `Processed ${results.length} rows.`,
+            description: `Processed ${results.length.toLocaleString()} rows (${fileSizeMB}MB).`,
           });
           
           resolve();
         },
         error: function(error) {
           console.error('Main thread parsing error:', error);
-          reject(error);
+          reject(new Error(`CSV parsing failed: ${error.message || 'Unknown error'}`));
         }
       });
     });

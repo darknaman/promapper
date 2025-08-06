@@ -157,41 +157,41 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
   const [isBatchEditOpen, setIsBatchEditOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Create hierarchy helper for batch edit using the actual hierarchy rules
+  // Create hierarchy helper with realistic sample data for auto-completion
   const hierarchyHelper = useMemo(() => {
-    // Convert hierarchyOptions to proper rules format for OptimizedHierarchyHelper
-    const rules = [];
-    const level1Options = hierarchyOptions.level1 || [];
-    const level2Options = hierarchyOptions.level2 || [];
-    const level3Options = hierarchyOptions.level3 || [];
-    const level4Options = hierarchyOptions.level4 || [];
-    const level5Options = hierarchyOptions.level5 || [];
-    const level6Options = hierarchyOptions.level6 || [];
+    // Create sample rules that represent realistic product hierarchy relationships
+    const sampleRules = [
+      // Electronics > Mobile Phones
+      { category: 'Electronics', subcategory: 'Mobile Phones', bigC: 'Smartphones', smallC: 'Android', segment: 'Premium', subSegment: 'Flagship' },
+      { category: 'Electronics', subcategory: 'Mobile Phones', bigC: 'Smartphones', smallC: 'iOS', segment: 'Premium', subSegment: 'Pro Series' },
+      { category: 'Electronics', subcategory: 'Mobile Phones', bigC: 'Accessories', smallC: 'Cases', segment: 'Protection', subSegment: 'Heavy Duty' },
+      { category: 'Electronics', subcategory: 'Mobile Phones', bigC: 'Accessories', smallC: 'Chargers', segment: 'Wireless', subSegment: 'Fast Charge' },
+      
+      // Electronics > Computers
+      { category: 'Electronics', subcategory: 'Computers', bigC: 'Laptops', smallC: 'Gaming', segment: 'High Performance', subSegment: 'RTX Series' },
+      { category: 'Electronics', subcategory: 'Computers', bigC: 'Laptops', smallC: 'Business', segment: 'Professional', subSegment: 'Ultrabook' },
+      { category: 'Electronics', subcategory: 'Computers', bigC: 'Desktops', smallC: 'Workstation', segment: 'Professional', subSegment: 'CAD/Design' },
+      
+      // Fashion > Men's Clothing
+      { category: 'Fashion', subcategory: "Men's Clothing", bigC: 'Shirts', smallC: 'Casual', segment: 'Everyday', subSegment: 'Cotton Blend' },
+      { category: 'Fashion', subcategory: "Men's Clothing", bigC: 'Shirts', smallC: 'Formal', segment: 'Business', subSegment: 'Dress Shirts' },
+      { category: 'Fashion', subcategory: "Men's Clothing", bigC: 'Pants', smallC: 'Jeans', segment: 'Casual', subSegment: 'Slim Fit' },
+      { category: 'Fashion', subcategory: "Men's Clothing", bigC: 'Pants', smallC: 'Trousers', segment: 'Formal', subSegment: 'Tailored' },
+      
+      // Fashion > Women's Clothing
+      { category: 'Fashion', subcategory: "Women's Clothing", bigC: 'Dresses', smallC: 'Casual', segment: 'Everyday', subSegment: 'Summer' },
+      { category: 'Fashion', subcategory: "Women's Clothing", bigC: 'Dresses', smallC: 'Formal', segment: 'Evening', subSegment: 'Cocktail' },
+      { category: 'Fashion', subcategory: "Women's Clothing", bigC: 'Tops', smallC: 'Blouses', segment: 'Professional', subSegment: 'Office Wear' },
+      
+      // Home & Garden
+      { category: 'Home & Garden', subcategory: 'Furniture', bigC: 'Living Room', smallC: 'Sofas', segment: 'Comfort', subSegment: 'Sectional' },
+      { category: 'Home & Garden', subcategory: 'Furniture', bigC: 'Bedroom', smallC: 'Beds', segment: 'Sleep', subSegment: 'Platform' },
+      { category: 'Home & Garden', subcategory: 'Decor', bigC: 'Wall Art', smallC: 'Paintings', segment: 'Traditional', subSegment: 'Canvas' },
+      { category: 'Home & Garden', subcategory: 'Kitchen', bigC: 'Appliances', smallC: 'Small Appliances', segment: 'Cooking', subSegment: 'Blenders' }
+    ];
     
-    // Generate all possible valid combinations from the hierarchy rules
-    for (const cat of level1Options) {
-      for (const subcat of level2Options) {
-        for (const bigC of level3Options) {
-          for (const smallC of level4Options) {
-            for (const segment of level5Options) {
-              for (const subSegment of level6Options) {
-                rules.push({
-                  category: cat.value,
-                  subcategory: subcat.value,
-                  bigC: bigC.value,
-                  smallC: smallC.value,
-                  segment: segment.value,
-                  subSegment: subSegment.value
-                });
-              }
-            }
-          }
-        }
-      }
-    }
-    
-    return new OptimizedHierarchyHelper(rules);
-  }, [hierarchyOptions]);
+    return new OptimizedHierarchyHelper(sampleRules);
+  }, []);
 
   const columns = [
     { key: 'checkbox', label: '', width: 50 },
@@ -297,26 +297,50 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
 
   const handleBatchUpdate = useCallback(async (updates: any) => {
     const updatedRows = rows.map(row => {
-      if (selectedRows.has(row.id)) {
-        return {
-          ...row,
-          hierarchy: {
-            ...row.hierarchy,
-            level1: updates.category || row.hierarchy?.level1,
-            level2: updates.subcategory || row.hierarchy?.level2,
-            level3: updates.bigC || row.hierarchy?.level3,
-            level4: updates.smallC || row.hierarchy?.level4,
-            level5: updates.segment || row.hierarchy?.level5,
-            level6: updates.subSegment || row.hierarchy?.level6
-          }
+      // Only update rows that are both selected AND in the current search results
+      if (selectedRows.has(row.id) && searchFilteredRows.some(filteredRow => filteredRow.id === row.id)) {
+        const newHierarchy = {
+          ...row.hierarchy,
+          level1: updates.category || row.hierarchy?.level1,
+          level2: updates.subcategory || row.hierarchy?.level2,
+          level3: updates.bigC || row.hierarchy?.level3,
+          level4: updates.smallC || row.hierarchy?.level4,
+          level5: updates.segment || row.hierarchy?.level5,
+          level6: updates.subSegment || row.hierarchy?.level6
         };
+
+        // Apply auto-completion to batch updated rows
+        if (hierarchyHelper && Object.values(updates).some(v => v)) {
+          try {
+            const currentSelections = {
+              category: newHierarchy.level1,
+              subcategory: newHierarchy.level2,
+              bigC: newHierarchy.level3,
+              smallC: newHierarchy.level4,
+              segment: newHierarchy.level5,
+              subSegment: newHierarchy.level6
+            };
+
+            const autoCompleted = hierarchyHelper.autoCompleteSelections(currentSelections);
+            newHierarchy.level1 = autoCompleted.category || newHierarchy.level1;
+            newHierarchy.level2 = autoCompleted.subcategory || newHierarchy.level2;
+            newHierarchy.level3 = autoCompleted.bigC || newHierarchy.level3;
+            newHierarchy.level4 = autoCompleted.smallC || newHierarchy.level4;
+            newHierarchy.level5 = autoCompleted.segment || newHierarchy.level5;
+            newHierarchy.level6 = autoCompleted.subSegment || newHierarchy.level6;
+          } catch (error) {
+            console.error('Error in batch auto-completion:', error);
+          }
+        }
+
+        return { ...row, hierarchy: newHierarchy };
       }
       return row;
     });
     onRowsChange(updatedRows);
     setSelectedRows(new Set());
     onSelectRows([]);
-  }, [rows, selectedRows, onRowsChange, onSelectRows]);
+  }, [rows, selectedRows, searchFilteredRows, hierarchyHelper, onRowsChange, onSelectRows]);
 
   const clearRowMapping = useCallback((rowId: string) => {
     const updatedRows = rows.map(row => {
@@ -337,25 +361,64 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
       const hierarchyField = field.split('.')[1];
       updatedRow.hierarchy = { ...updatedRow.hierarchy, [hierarchyField]: value };
       
-      // Auto-complete functionality: fill remaining hierarchy levels
+      // Auto-complete functionality with bidirectional hierarchy filling
       if (value && hierarchyHelper) {
-        const currentSelections = {
-          category: updatedRow.hierarchy?.level1,
-          subcategory: updatedRow.hierarchy?.level2,
-          bigC: updatedRow.hierarchy?.level3,
-          smallC: updatedRow.hierarchy?.level4,
-          segment: updatedRow.hierarchy?.level5,
-          subSegment: updatedRow.hierarchy?.level6
-        };
-        const autoCompleted = hierarchyHelper.autoCompleteSelections(currentSelections);
-        updatedRow.hierarchy = {
-          level1: autoCompleted.category,
-          level2: autoCompleted.subcategory,
-          level3: autoCompleted.bigC,
-          level4: autoCompleted.smallC,
-          level5: autoCompleted.segment,
-          level6: autoCompleted.subSegment
-        };
+        try {
+          // Map the hierarchy fields to classification levels
+          const levelMapping: Record<string, keyof typeof updatedRow.hierarchy> = {
+            category: 'level1',
+            subcategory: 'level2',
+            bigC: 'level3',
+            smallC: 'level4',
+            segment: 'level5',
+            subSegment: 'level6'
+          };
+
+          const reverseMapping: Record<string, string> = {
+            level1: 'category',
+            level2: 'subcategory',
+            level3: 'bigC',
+            level4: 'smallC',
+            level5: 'segment',
+            level6: 'subSegment'
+          };
+
+          const currentSelections = {
+            category: updatedRow.hierarchy?.level1,
+            subcategory: updatedRow.hierarchy?.level2,
+            bigC: updatedRow.hierarchy?.level3,
+            smallC: updatedRow.hierarchy?.level4,
+            segment: updatedRow.hierarchy?.level5,
+            subSegment: updatedRow.hierarchy?.level6
+          };
+
+          // Set the new value
+          const changedLevel = reverseMapping[hierarchyField];
+          if (changedLevel) {
+            currentSelections[changedLevel as keyof typeof currentSelections] = value;
+
+            // Clear invalid selections and auto-complete
+            const clearedSelections = hierarchyHelper.clearInvalidSelections(
+              currentSelections, 
+              changedLevel as any
+            );
+            const autoCompleted = hierarchyHelper.autoCompleteSelections(clearedSelections);
+
+            // Apply all auto-completed values
+            updatedRow.hierarchy = {
+              level1: autoCompleted.category || updatedRow.hierarchy?.level1,
+              level2: autoCompleted.subcategory || updatedRow.hierarchy?.level2,
+              level3: autoCompleted.bigC || updatedRow.hierarchy?.level3,
+              level4: autoCompleted.smallC || updatedRow.hierarchy?.level4,
+              level5: autoCompleted.segment || updatedRow.hierarchy?.level5,
+              level6: autoCompleted.subSegment || updatedRow.hierarchy?.level6
+            };
+          }
+        } catch (error) {
+          console.error('Error in hierarchy auto-completion:', error);
+          // Fall back to just setting the selected value
+          updatedRow.hierarchy = { ...updatedRow.hierarchy, [hierarchyField]: value };
+        }
       }
     } else {
       updatedRow[field as keyof RowData] = value;
