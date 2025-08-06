@@ -323,16 +323,16 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
   // Base column definitions
   const baseColumnConfigs: ColumnConfig[] = useMemo(() => [
     { key: 'checkbox', label: '', width: 50, minWidth: 50, maxWidth: 50, isCustom: false },
-    { key: 'name', label: 'Product Name', width: 200, minWidth: 120, maxWidth: 400, isCustom: false },
-    { key: 'sku', label: 'SKU/ID', width: 120, minWidth: 80, maxWidth: 200, isCustom: false },
-    { key: 'brand', label: 'Brand', width: 120, minWidth: 80, maxWidth: 200, isCustom: false },
-    { key: 'url', label: 'URL', width: 150, minWidth: 100, maxWidth: 300, isCustom: false },
-    { key: 'level1', label: 'Category', width: 140, minWidth: 100, maxWidth: 250, isCustom: false },
-    { key: 'level2', label: 'Subcategory', width: 140, minWidth: 100, maxWidth: 250, isCustom: false },
-    { key: 'level3', label: 'Big C', width: 120, minWidth: 80, maxWidth: 200, isCustom: false },
-    { key: 'level4', label: 'Small C', width: 120, minWidth: 80, maxWidth: 200, isCustom: false },
-    { key: 'level5', label: 'Segment', width: 120, minWidth: 80, maxWidth: 200, isCustom: false },
-    { key: 'level6', label: 'Sub-segment', width: 130, minWidth: 90, maxWidth: 200, isCustom: false },
+    { key: 'name', label: 'Product Name', width: 200, minWidth: 10, maxWidth: 500, isCustom: false },
+    { key: 'sku', label: 'SKU/ID', width: 120, minWidth: 10, maxWidth: 500, isCustom: false },
+    { key: 'brand', label: 'Brand', width: 120, minWidth: 10, maxWidth: 500, isCustom: false },
+    { key: 'url', label: 'URL', width: 150, minWidth: 10, maxWidth: 500, isCustom: false },
+    { key: 'level1', label: 'Category', width: 140, minWidth: 10, maxWidth: 500, isCustom: false },
+    { key: 'level2', label: 'Subcategory', width: 140, minWidth: 10, maxWidth: 500, isCustom: false },
+    { key: 'level3', label: 'Big C', width: 120, minWidth: 10, maxWidth: 500, isCustom: false },
+    { key: 'level4', label: 'Small C', width: 120, minWidth: 10, maxWidth: 500, isCustom: false },
+    { key: 'level5', label: 'Segment', width: 120, minWidth: 10, maxWidth: 500, isCustom: false },
+    { key: 'level6', label: 'Sub-segment', width: 130, minWidth: 10, maxWidth: 500, isCustom: false },
     { key: 'clear', label: '', width: 60, minWidth: 60, maxWidth: 60, isCustom: false }
   ], []);
 
@@ -342,8 +342,8 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
       key: col.id,
       label: col.name,
       width: col.width,
-      minWidth: 80,
-      maxWidth: 300,
+      minWidth: 10,
+      maxWidth: 500,
       isCustom: true
     }));
     

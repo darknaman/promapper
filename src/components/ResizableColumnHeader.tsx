@@ -46,8 +46,8 @@ const ResizableColumnHeader: React.FC<ResizableColumnHeaderProps> = ({
     const handleMouseMove = (e: MouseEvent) => {
       const deltaX = e.clientX - startXRef.current;
       const newWidth = Math.max(
-        column.minWidth || 60,
-        Math.min(column.maxWidth || 400, startWidthRef.current + deltaX)
+        column.minWidth || 10,
+        Math.min(column.maxWidth || 500, startWidthRef.current + deltaX)
       );
       setResizePreview(newWidth);
     };

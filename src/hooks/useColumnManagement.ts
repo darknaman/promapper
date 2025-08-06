@@ -16,8 +16,8 @@ export interface ColumnManagementState {
 }
 
 const STORAGE_KEY = 'column-management-settings';
-const DEFAULT_MIN_WIDTH = 60;
-const DEFAULT_MAX_WIDTH = 400;
+const DEFAULT_MIN_WIDTH = 10;
+const DEFAULT_MAX_WIDTH = 500;
 
 export const useColumnManagement = (initialColumns: ColumnConfig[]) => {
   const [state, setState] = useState<ColumnManagementState>(() => {
