@@ -313,7 +313,13 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
   onDeleteRow,
   onSelectRows,
   validateProductField,
-  hierarchyHelper: externalHierarchyHelper
+  hierarchyHelper: externalHierarchyHelper,
+  customColumns: propCustomColumns,
+  onAddColumn: propAddColumn,
+  onRemoveColumn: propRemoveColumn,
+  onUpdateColumnWidth: propUpdateColumnWidth,
+  getValue: propGetValue,
+  setValue: propSetValue
 }) => {
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [showIncomplete, setShowIncomplete] = useState(false);
@@ -321,8 +327,14 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: SortDirection } | null>(null);
   
-  // Custom columns hook
-  const { customColumns, addColumn, removeColumn, updateColumnWidth, getValue, setValue } = useCustomColumns();
+  // Use prop functions if provided, otherwise use internal hook
+  const internalCustomColumns = useCustomColumns();
+  const customColumns = propCustomColumns || internalCustomColumns.customColumns;
+  const addColumn = propAddColumn || internalCustomColumns.addColumn;
+  const removeColumn = propRemoveColumn || internalCustomColumns.removeColumn;
+  const updateColumnWidth = propUpdateColumnWidth || internalCustomColumns.updateColumnWidth;
+  const getValue = propGetValue || internalCustomColumns.getValue;
+  const setValue = propSetValue || internalCustomColumns.setValue;
 
   // Base column definitions
   const baseColumnConfigs: ColumnConfig[] = useMemo(() => [

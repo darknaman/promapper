@@ -22,7 +22,7 @@ const Index = () => {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const { toast } = useToast();
-  const { customColumns, addColumn, setValue } = useCustomColumns();
+  const { customColumns, addColumn, removeColumn, updateColumnWidth, getValue, setValue } = useCustomColumns();
   const autoSaveManagerRef = useRef<AutoSaveManager | null>(null);
   
   const [csvPreviewDialog, setCsvPreviewDialog] = useState<{
@@ -834,6 +834,12 @@ const Index = () => {
             onDeleteRow={handleDeleteRow}
             onSelectRows={handleSelectRows}
             hierarchyHelper={hierarchyHelper}
+            customColumns={customColumns}
+            onAddColumn={addColumn}
+            onRemoveColumn={removeColumn}
+            onUpdateColumnWidth={updateColumnWidth}
+            getValue={getValue}
+            setValue={setValue}
           />
         ) : (
           <Card className="p-12 text-center">
