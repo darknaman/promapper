@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import TableDemo from "./pages/TableDemo";
+import FooterAttribution from "./components/FooterAttribution";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +23,7 @@ const App = () => (
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
+      <FooterAttribution />
     </TooltipProvider>
   </QueryClientProvider>
 );

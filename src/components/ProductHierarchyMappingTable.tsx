@@ -17,6 +17,8 @@ import AddColumnModal from './AddColumnModal';
 import { useCustomColumns } from '../hooks/useCustomColumns';
 import { SortableHeader, SortDirection } from './SortableHeader';
 import URLCell from './URLCell';
+import { useColumnManagement, ColumnConfig } from '../hooks/useColumnManagement';
+import ResizableColumnHeader from './ResizableColumnHeader';
 
 const AutocompleteCell: React.FC<{
   value: string;
@@ -318,6 +320,53 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
   // Custom columns hook
   const { customColumns, addColumn, removeColumn, updateColumnWidth, getValue, setValue } = useCustomColumns();
 
+  // Base column definitions
+  const baseColumnConfigs: ColumnConfig[] = useMemo(() => [
+    { key: 'checkbox', label: '', width: 50, minWidth: 50, maxWidth: 50, isCustom: false },
+    { key: 'name', label: 'Product Name', width: 200, minWidth: 120, maxWidth: 400, isCustom: false },
+    { key: 'sku', label: 'SKU/ID', width: 120, minWidth: 80, maxWidth: 200, isCustom: false },
+    { key: 'brand', label: 'Brand', width: 120, minWidth: 80, maxWidth: 200, isCustom: false },
+    { key: 'url', label: 'URL', width: 150, minWidth: 100, maxWidth: 300, isCustom: false },
+    { key: 'level1', label: 'Category', width: 140, minWidth: 100, maxWidth: 250, isCustom: false },
+    { key: 'level2', label: 'Subcategory', width: 140, minWidth: 100, maxWidth: 250, isCustom: false },
+    { key: 'level3', label: 'Big C', width: 120, minWidth: 80, maxWidth: 200, isCustom: false },
+    { key: 'level4', label: 'Small C', width: 120, minWidth: 80, maxWidth: 200, isCustom: false },
+    { key: 'level5', label: 'Segment', width: 120, minWidth: 80, maxWidth: 200, isCustom: false },
+    { key: 'level6', label: 'Sub-segment', width: 130, minWidth: 90, maxWidth: 200, isCustom: false },
+    { key: 'clear', label: '', width: 60, minWidth: 60, maxWidth: 60, isCustom: false }
+  ], []);
+
+  // Combine base columns with custom columns for column management
+  const allColumnConfigs = useMemo(() => {
+    const customColumnConfigs: ColumnConfig[] = customColumns.map(col => ({
+      key: col.id,
+      label: col.name,
+      width: col.width,
+      minWidth: 80,
+      maxWidth: 300,
+      isCustom: true
+    }));
+    
+    // Insert custom columns before the 'clear' column
+    const result = [...baseColumnConfigs];
+    const clearIndex = result.findIndex(col => col.key === 'clear');
+    result.splice(clearIndex, 0, ...customColumnConfigs);
+    return result;
+  }, [baseColumnConfigs, customColumns]);
+
+  // Column management hook
+  const {
+    columns: managedColumns,
+    frozenColumns,
+    scrollableColumns,
+    frozenColumnCount,
+    updateColumnWidth: updateManagedColumnWidth,
+    freezeColumnsUpTo,
+    unfreezeAllColumns,
+    addColumn: addManagedColumn,
+    removeColumn: removeManagedColumn
+  } = useColumnManagement(allColumnConfigs);
+
   // Use external hierarchy helper if provided, otherwise create from options
   const hierarchyHelper = useMemo(() => {
     if (externalHierarchyHelper) {
@@ -362,36 +411,20 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
     return new OptimizedHierarchyHelper(rules);
   }, [externalHierarchyHelper, hierarchyOptions]);
 
-  // Combine base columns with custom columns
-  const columns = useMemo(() => {
-    const baseColumns = [
-      { key: 'checkbox', label: '', width: 50, isCustom: false },
-      { key: 'name', label: 'Product Name', width: 200, isCustom: false },
-      { key: 'sku', label: 'SKU/ID', width: 120, isCustom: false },
-      { key: 'brand', label: 'Brand', width: 120, isCustom: false },
-      { key: 'url', label: 'URL', width: 150, isCustom: false },
-      { key: 'level1', label: 'Category', width: 140, isCustom: false },
-      { key: 'level2', label: 'Subcategory', width: 140, isCustom: false },
-      { key: 'level3', label: 'Big C', width: 120, isCustom: false },
-      { key: 'level4', label: 'Small C', width: 120, isCustom: false },
-      { key: 'level5', label: 'Segment', width: 120, isCustom: false },
-      { key: 'level6', label: 'Sub-segment', width: 130, isCustom: false },
-      { key: 'clear', label: '', width: 60, isCustom: false },
-    ];
-    
-    // Add custom columns before the clear column
-    const customCols = customColumns.map(col => ({
-      key: col.id,
-      label: col.name,
-      width: col.width,
-      isCustom: true,
-      dataType: col.dataType
-    }));
-    
-    // Insert custom columns before the clear column
-    const result = [...baseColumns.slice(0, -1), ...customCols, baseColumns[baseColumns.length - 1]];
-    return result;
-  }, [customColumns]);
+  // Handle column resizing and custom columns
+  const handleColumnResize = useCallback((columnKey: string, newWidth: number) => {
+    updateManagedColumnWidth(columnKey, newWidth);
+    // Also update custom column width if it's a custom column
+    const customColumn = customColumns.find(col => col.id === columnKey);
+    if (customColumn) {
+      updateColumnWidth(columnKey, newWidth);
+    }
+  }, [updateManagedColumnWidth, customColumns, updateColumnWidth]);
+
+  const handleRemoveColumn = useCallback((columnKey: string) => {
+    removeManagedColumn(columnKey);
+    removeColumn(columnKey);
+  }, [removeManagedColumn, removeColumn]);
 
   // Filter rows based on show incomplete
   const filteredRows = useMemo(() => {
@@ -467,7 +500,7 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
         return bStr.localeCompare(aStr);
       }
     });
-  }, [searchFilteredRows, sortConfig, customColumns, getValue]);
+  }, [searchFilteredRows, sortConfig, customColumns, managedColumns, getValue]);
 
   const handleSort = useCallback((key: string, direction: SortDirection) => {
     setSortConfig(direction ? { key, direction } : null);
@@ -789,139 +822,231 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
         </div>
       </div>
 
-      <div className="border rounded-lg overflow-auto bg-card max-h-[600px]">
-        <table className="w-full">
-          <thead className="bg-muted/30 sticky top-0 z-10">
-            <tr>
-              {columns.map((column) => (
-                <th
-                  key={column.key}
-                  className="text-left p-2 text-sm font-medium border-r border-border"
-                  style={{ 
-                    width: column.width,
-                    minWidth: column.width,
-                    position: column.key === 'clear' ? 'sticky' : 'relative',
-                    right: column.key === 'clear' ? 0 : 'auto',
-                    backgroundColor: column.key === 'clear' ? 'hsl(var(--muted))' : 'inherit',
-                    zIndex: column.key === 'clear' ? 11 : 10,
-                  }}
-                >
-                   {column.key === 'checkbox' ? (
-                    <Checkbox
-                      checked={isAllSelected}
-                      onCheckedChange={handleSelectAll}
-                      aria-label="Select all rows"
-                    />
-                  ) : column.key === 'clear' ? (
-                    <span className="text-xs text-muted-foreground">Clear</span>
-                  ) : column.isCustom ? (
-                    <div className="flex items-center justify-between gap-1 min-w-0">
+      <div className="border rounded-lg overflow-hidden bg-card max-h-[600px] relative">
+        {/* Frozen columns container */}
+        {frozenColumnCount > 0 && (
+          <div className="absolute left-0 top-0 bottom-0 bg-background border-r z-30 overflow-hidden">
+            <table className="h-full">
+              <thead className="bg-muted/30 sticky top-0 z-40">
+                <tr>
+                  {frozenColumns.map((column, index) => (
+                    <ResizableColumnHeader
+                      key={column.key}
+                      column={column}
+                      columnIndex={index}
+                      totalColumns={managedColumns.length}
+                      frozenColumnCount={frozenColumnCount}
+                      onColumnResize={handleColumnResize}
+                      onFreezeColumnsUpTo={freezeColumnsUpTo}
+                      onUnfreezeAll={unfreezeAllColumns}
+                      onRemoveColumn={column.isCustom ? handleRemoveColumn : undefined}
+                    >
+                      {column.key === 'checkbox' ? (
+                        <Checkbox
+                          checked={isAllSelected}
+                          onCheckedChange={handleSelectAll}
+                          aria-label="Select all rows"
+                        />
+                      ) : column.key === 'clear' ? (
+                        <span className="text-xs text-muted-foreground">Clear</span>
+                      ) : (
+                        <SortableHeader
+                          label={column.label}
+                          sortKey={column.key}
+                          currentSort={sortConfig}
+                          onSort={handleSort}
+                          width={column.width}
+                        />
+                      )}
+                    </ResizableColumnHeader>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sortedRows.map((row) => (
+                  <tr key={row.id} className="border-b border-border hover:bg-muted/50">
+                    {frozenColumns.map((column) => (
+                      <td
+                        key={`${row.id}-${column.key}`}
+                        className="p-2 border-r border-border bg-background"
+                        style={{ 
+                          width: column.width,
+                          minWidth: column.width,
+                        }}
+                      >
+                        {/* Cell content rendering */}
+                        {column.key === 'checkbox' && (
+                          <Checkbox
+                            checked={selectedRows.has(row.id)}
+                            onCheckedChange={(checked) => handleRowSelect(row.id, !!checked)}
+                            aria-label={`Select row ${row.id}`}
+                          />
+                        )}
+                        {column.key === 'url' && (
+                          <URLCell
+                            value={row[column.key as keyof RowData] as string || ''}
+                            onChange={(value) => updateField(row.id, column.key, value)}
+                          />
+                        )}
+                        {(column.key === 'name' || column.key === 'sku' || column.key === 'brand') && (
+                          <TooltipCell
+                            value={row[column.key as keyof RowData] as string || ''}
+                            onChange={(value) => updateField(row.id, column.key, value)}
+                          />
+                        )}
+                        {(column.key === 'level1' || column.key === 'level2' || column.key === 'level3' || 
+                          column.key === 'level4' || column.key === 'level5' || column.key === 'level6') && (
+                          <HierarchyAutocompleteCell
+                            row={row}
+                            column={column}
+                            hierarchyHelper={hierarchyHelper}
+                            onRowUpdate={handleRowUpdate}
+                            hierarchyOptions={hierarchyOptions}
+                          />
+                        )}
+                        {column.isCustom && (
+                          <TooltipCell
+                            value={getValue(row.id, column.key)}
+                            onChange={(value) => setValue(row.id, column.key, value)}
+                          />
+                        )}
+                        {column.key === 'clear' && (
+                          <div className="flex justify-center">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => clearRowMapping(row.id)}
+                              className="h-8 w-8 p-0 hover:bg-destructive/10"
+                              aria-label={`Clear mapping for row ${row.id}`}
+                            >
+                              <RotateCcw className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </div>
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Scrollable table container */}
+        <div 
+          className="overflow-auto"
+          style={{ 
+            marginLeft: frozenColumnCount > 0 ? frozenColumns.reduce((acc, col) => acc + col.width, 0) : 0 
+          }}
+        >
+          <table className="w-full">
+            <thead className="bg-muted/30 sticky top-0 z-10">
+              <tr>
+                {scrollableColumns.map((column, index) => (
+                  <ResizableColumnHeader
+                    key={column.key}
+                    column={column}
+                    columnIndex={frozenColumnCount + index}
+                    totalColumns={managedColumns.length}
+                    frozenColumnCount={frozenColumnCount}
+                    onColumnResize={handleColumnResize}
+                    onFreezeColumnsUpTo={freezeColumnsUpTo}
+                    onUnfreezeAll={unfreezeAllColumns}
+                    onRemoveColumn={column.isCustom ? handleRemoveColumn : undefined}
+                  >
+                    {column.key === 'checkbox' ? (
+                      <Checkbox
+                        checked={isAllSelected}
+                        onCheckedChange={handleSelectAll}
+                        aria-label="Select all rows"
+                      />
+                    ) : column.key === 'clear' ? (
+                      <span className="text-xs text-muted-foreground">Clear</span>
+                    ) : (
                       <SortableHeader
                         label={column.label}
                         sortKey={column.key}
                         currentSort={sortConfig}
                         onSort={handleSort}
-                        width={column.width - 30}
-                        className="flex-1 min-w-0"
-                      />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-4 w-4 p-0 hover:bg-destructive/10 flex-shrink-0"
-                        onClick={() => removeColumn(column.key)}
-                        aria-label={`Delete ${column.label} column`}
-                      >
-                        <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <SortableHeader
-                      label={column.label}
-                      sortKey={column.key}
-                      currentSort={sortConfig}
-                      onSort={handleSort}
-                      width={column.width}
-                    />
-                  )}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {sortedRows.map((row) => (
-              <tr key={row.id} className="border-b border-border hover:bg-muted/50">
-                {columns.map((column) => (
-                  <td
-                    key={`${row.id}-${column.key}`}
-                    className="p-2 border-r border-border"
-                    style={{ 
-                      width: column.width,
-                      minWidth: column.width,
-                      position: column.key === 'clear' ? 'sticky' : 'relative',
-                      right: column.key === 'clear' ? 0 : 'auto',
-                      backgroundColor: column.key === 'clear' ? 'hsl(var(--background))' : 'inherit',
-                      zIndex: column.key === 'clear' ? 3 : 1,
-                    }}
-                  >
-                    {column.key === 'checkbox' && (
-                      <Checkbox
-                        checked={selectedRows.has(row.id)}
-                        onCheckedChange={(checked) => handleRowSelect(row.id, !!checked)}
-                        aria-label={`Select row ${row.id}`}
+                        width={column.width}
                       />
                     )}
-
-                    {column.key === 'url' && (
-                      <URLCell
-                        value={row[column.key as keyof RowData] as string || ''}
-                        onChange={(value) => updateField(row.id, column.key, value)}
-                      />
-                    )}
-
-                    {(column.key === 'name' || column.key === 'sku' || column.key === 'brand') && (
-                      <TooltipCell
-                        value={row[column.key as keyof RowData] as string || ''}
-                        onChange={(value) => updateField(row.id, column.key, value)}
-                      />
-                    )}
-
-                    {(column.key === 'level1' || column.key === 'level2' || column.key === 'level3' || 
-                      column.key === 'level4' || column.key === 'level5' || column.key === 'level6') && (
-                      <HierarchyAutocompleteCell
-                        row={row}
-                        column={column}
-                        hierarchyHelper={hierarchyHelper}
-                        onRowUpdate={handleRowUpdate}
-                        hierarchyOptions={hierarchyOptions}
-                      />
-                    )}
-
-                    {column.isCustom && (
-                      <TooltipCell
-                        value={getValue(row.id, column.key)}
-                        onChange={(value) => setValue(row.id, column.key, value)}
-                      />
-                    )}
-
-                    {column.key === 'clear' && (
-                      <div className="flex justify-center">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => clearRowMapping(row.id)}
-                          className="h-8 w-8 p-0 hover:bg-destructive/10"
-                          aria-label={`Clear mapping for row ${row.id}`}
-                        >
-                          <RotateCcw className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                      </div>
-                    )}
-                  </td>
+                  </ResizableColumnHeader>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {sortedRows.map((row) => (
+                <tr key={row.id} className="border-b border-border hover:bg-muted/50">
+                  {scrollableColumns.map((column) => (
+                    <td
+                      key={`${row.id}-${column.key}`}
+                      className="p-2 border-r border-border"
+                      style={{ 
+                        width: column.width,
+                        minWidth: column.width,
+                        position: column.key === 'clear' ? 'sticky' : 'relative',
+                        right: column.key === 'clear' ? 0 : 'auto',
+                        backgroundColor: column.key === 'clear' ? 'hsl(var(--background))' : 'inherit',
+                        zIndex: column.key === 'clear' ? 11 : 1,
+                      }}
+                    >
+                      {/* Cell content rendering */}
+                      {column.key === 'checkbox' && (
+                        <Checkbox
+                          checked={selectedRows.has(row.id)}
+                          onCheckedChange={(checked) => handleRowSelect(row.id, !!checked)}
+                          aria-label={`Select row ${row.id}`}
+                        />
+                      )}
+                      {column.key === 'url' && (
+                        <URLCell
+                          value={row[column.key as keyof RowData] as string || ''}
+                          onChange={(value) => updateField(row.id, column.key, value)}
+                        />
+                      )}
+                      {(column.key === 'name' || column.key === 'sku' || column.key === 'brand') && (
+                        <TooltipCell
+                          value={row[column.key as keyof RowData] as string || ''}
+                          onChange={(value) => updateField(row.id, column.key, value)}
+                        />
+                      )}
+                      {(column.key === 'level1' || column.key === 'level2' || column.key === 'level3' || 
+                        column.key === 'level4' || column.key === 'level5' || column.key === 'level6') && (
+                        <HierarchyAutocompleteCell
+                          row={row}
+                          column={column}
+                          hierarchyHelper={hierarchyHelper}
+                          onRowUpdate={handleRowUpdate}
+                          hierarchyOptions={hierarchyOptions}
+                        />
+                      )}
+                      {column.isCustom && (
+                        <TooltipCell
+                          value={getValue(row.id, column.key)}
+                          onChange={(value) => setValue(row.id, column.key, value)}
+                        />
+                      )}
+                      {column.key === 'clear' && (
+                        <div className="flex justify-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => clearRowMapping(row.id)}
+                            className="h-8 w-8 p-0 hover:bg-destructive/10"
+                            aria-label={`Clear mapping for row ${row.id}`}
+                          >
+                            <RotateCcw className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </div>
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Batch Edit Dialog */}
