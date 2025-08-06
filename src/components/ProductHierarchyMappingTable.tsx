@@ -144,11 +144,45 @@ const TableRow = memo<{
             />
           )}
 
-          {(column.key === 'name' || column.key === 'sku' || column.key === 'brand' || column.key === 'url') && (
+          {(column.key === 'name' || column.key === 'sku' || column.key === 'brand') && (
             <TooltipCell
               value={row[column.key as keyof RowData] as string || ''}
               onChange={(value) => onUpdateField(row.id, column.key, value)}
             />
+          )}
+
+          {column.key === 'url' && (
+            <div className="flex items-center gap-1 h-8">
+              <TooltipCell
+                value={row.url || ''}
+                onChange={(value) => onUpdateField(row.id, 'url', value)}
+                className="flex-1"
+              />
+              {row.url && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => window.open(row.url, '_blank', 'noopener,noreferrer')}
+                  className="h-6 w-6 p-0 hover:bg-primary/10 transition-colors ml-1"
+                  title="Open URL in new tab"
+                >
+                  <svg 
+                    className="h-3 w-3 text-primary" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24" 
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2} 
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" 
+                    />
+                  </svg>
+                </Button>
+              )}
+            </div>
           )}
 
           {(column.key === 'level1' || column.key === 'level2' || column.key === 'level3' || 
@@ -371,6 +405,7 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
   // Performance-optimized handlers
   const handleSort = useCallback((key: string, direction: SortDirection) => {
     measureUpdate(() => {
+      console.log('Sorting by:', key, 'direction:', direction);
       setSortConfig(direction ? { key, direction } : null);
     }, 'sort');
   }, [measureUpdate]);
@@ -421,12 +456,15 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
   const handleSelectAll = useCallback((checked: boolean) => {
     measureUpdate(() => {
       if (checked) {
+        // Select only the currently filtered/sorted rows
         const allFilteredIds = new Set(sortedRows.map(row => row.id));
         setSelectedRows(allFilteredIds);
         onSelectRows?.(Array.from(allFilteredIds));
+        console.log('Selected all filtered rows:', allFilteredIds.size, 'total filtered rows:', sortedRows.length);
       } else {
         setSelectedRows(new Set());
         onSelectRows?.([]);
+        console.log('Deselected all rows');
       }
     }, 'selectAll');
   }, [sortedRows, onSelectRows, measureUpdate]);

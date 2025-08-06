@@ -52,10 +52,14 @@ const HierarchyAutocompleteCell: React.FC<HierarchyAutocompleteCellProps> = memo
   // Get filtered options based on current selections using hierarchy helper
   const availableOptions = useMemo(() => {
     try {
-      return hierarchyHelper.getAvailableOptions(level, currentSelections);
+      const options = hierarchyHelper.getAvailableOptions(level, currentSelections);
+      console.log(`Available options for ${column.key} (${level}):`, options.length, 'options');
+      return options;
     } catch (error) {
       console.warn('Error getting available options:', error);
-      return hierarchyOptions[column.key] || [];
+      const fallbackOptions = hierarchyOptions[column.key] || [];
+      console.log(`Using fallback options for ${column.key}:`, fallbackOptions.length, 'options');
+      return fallbackOptions;
     }
   }, [hierarchyHelper, level, currentSelections, hierarchyOptions, column.key]);
 
@@ -69,10 +73,12 @@ const HierarchyAutocompleteCell: React.FC<HierarchyAutocompleteCellProps> = memo
   const selectedOption = availableOptions.find(opt => opt.value === (row.hierarchy?.[column.key] || ''));
 
   const handleSelectionChange = useCallback((value: string) => {
+    console.log('Hierarchy selection changed:', { level, value, column: column.key });
     const newSelections = { ...currentSelections, [level]: value };
     
     // Auto-complete other fields using hierarchy helper
     const autoCompletedSelections = hierarchyHelper.autoCompleteSelections(newSelections);
+    console.log('Auto-completed selections:', autoCompletedSelections);
     
     // Update the row with auto-completed data
     const updatedRow = {
@@ -88,6 +94,7 @@ const HierarchyAutocompleteCell: React.FC<HierarchyAutocompleteCellProps> = memo
       }
     };
     
+    console.log('Updated row hierarchy:', updatedRow.hierarchy);
     onRowUpdate(updatedRow);
     setOpen(false);
     setSearchQuery('');
@@ -119,7 +126,7 @@ const HierarchyAutocompleteCell: React.FC<HierarchyAutocompleteCellProps> = memo
                   <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[200px] p-0 bg-popover border border-border z-50" side="bottom" align="start">
+              <PopoverContent className="w-[200px] p-0 bg-popover border border-border z-[9999]" side="bottom" align="start" sideOffset={4}>
                 <Command>
                   <CommandInput 
                     placeholder={`Search ${column.label.toLowerCase()}...`}
@@ -154,7 +161,7 @@ const HierarchyAutocompleteCell: React.FC<HierarchyAutocompleteCellProps> = memo
           </div>
         </TooltipTrigger>
         {selectedOption?.label && selectedOption.label.length > 15 && (
-          <TooltipContent side="top" className="max-w-md break-words z-50">
+          <TooltipContent side="top" className="max-w-md break-words z-[9999]">
             <p>{selectedOption.label}</p>
           </TooltipContent>
         )}
