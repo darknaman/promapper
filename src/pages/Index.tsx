@@ -229,29 +229,36 @@ const Index = () => {
       if (selectedNewColumns && selectedNewColumns.length > 0) {
         console.log('Mapping values for new columns:', selectedNewColumns);
         console.log('Column ID mapping:', newColumnIds);
+        console.log('ProcessedProducts length:', processedProducts.length);
+        console.log('CSV data length:', data.length);
         
-        setTimeout(() => {
-          data.forEach((row, index) => {
-            const productId = processedProducts[index]?.id;
-            if (!productId) {
-              console.warn(`No product ID found for row ${index}`);
-              return;
-            }
-
-            selectedNewColumns.forEach(header => {
-              const value = row[header];
-              if (value != null && value !== '') {
-                const columnId = newColumnIds[header];
-                if (columnId) {
-                  console.log(`Setting value "${value}" for product ${productId}, column ${header} (${columnId})`);
-                  setValue(productId, columnId, String(value));
-                } else {
-                  console.warn(`Column ID not found for header: ${header}`);
-                }
+        // Use requestAnimationFrame to ensure DOM updates are complete
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            console.log('Starting value mapping for custom columns');
+            data.forEach((row, index) => {
+              const productId = processedProducts[index]?.id;
+              if (!productId) {
+                console.warn(`No product ID found for row ${index}`);
+                return;
               }
+
+              selectedNewColumns.forEach(header => {
+                const value = row[header];
+                if (value != null && value !== '') {
+                  const columnId = newColumnIds[header];
+                  if (columnId) {
+                    console.log(`Setting value "${value}" for product ${productId}, column ${header} (${columnId})`);
+                    setValue(productId, columnId, String(value));
+                  } else {
+                    console.warn(`Column ID not found for header: ${header}`);
+                  }
+                }
+              });
             });
-          });
-        }, 300); // Wait for state updates
+            console.log('Finished mapping custom column values');
+          }, 100);
+        });
       }
       
       toast({
