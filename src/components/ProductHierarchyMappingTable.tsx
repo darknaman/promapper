@@ -7,16 +7,12 @@ import { Badge } from './ui/badge';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
-import { RotateCcw, Check, ChevronsUpDown, Eye, EyeOff, Download, Search, X, Plus, Settings } from 'lucide-react';
+import { RotateCcw, Check, ChevronsUpDown, Eye, EyeOff, Download, Search, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { RowData, ProductHierarchyMappingTableProps } from '../types/productTable';
 import BatchEditForm from './BatchEditForm';
 import { Product, ClassificationLevel, FilterState } from '../types/mapping';
 import { OptimizedHierarchyHelper } from '../utils/optimizedHierarchyHelper';
-import { useColumnManagement } from '../hooks/useColumnManagement';
-import { useSorting } from '../hooks/useSorting';
-import SortableHeader from './SortableHeader';
-import ColumnManagementPanel from './ColumnManagementPanel';
 
 const AutocompleteCell: React.FC<{
   value: string;
