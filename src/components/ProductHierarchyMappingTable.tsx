@@ -342,6 +342,7 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
 
   // Combine base columns with custom columns for column management
   const allColumnConfigs = useMemo(() => {
+    console.log('Custom columns in table:', customColumns.length, customColumns);
     const customColumnConfigs: ColumnConfig[] = customColumns.map(col => ({
       key: col.id,
       label: col.name,
@@ -355,6 +356,7 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
     const result = [...baseColumnConfigs];
     const clearIndex = result.findIndex(col => col.key === 'clear');
     result.splice(clearIndex, 0, ...customColumnConfigs);
+    console.log('All column configs:', result.length, result.map(c => ({ key: c.key, label: c.label, isCustom: c.isCustom })));
     return result;
   }, [baseColumnConfigs, customColumns]);
 

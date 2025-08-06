@@ -175,6 +175,7 @@ const Index = () => {
       const newColumnIds: Record<string, string> = {};
       if (selectedNewColumns && selectedNewColumns.length > 0) {
         console.log('Adding new columns:', selectedNewColumns);
+        console.log('Current custom columns before adding:', customColumns.length);
         
         for (const header of selectedNewColumns) {
           const allValues = data.map(row => row[header]).filter(val => val != null);
@@ -196,8 +197,9 @@ const Index = () => {
           console.log(`Created column "${header}" with ID: ${columnId}`);
         }
         
+        console.log('New column IDs mapping:', newColumnIds);
         // Wait longer for columns to be created and UI to update
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
 
       // Process products
