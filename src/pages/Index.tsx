@@ -21,7 +21,7 @@ const Index = () => {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const { toast } = useToast();
-  const { customColumns, setValue } = useCustomColumns();
+  const { customColumns, addColumn, setValue } = useCustomColumns();
   const autoSaveManagerRef = useRef<AutoSaveManager | null>(null);
 
   // Initialize auto-save manager (silent auto-save)
@@ -72,6 +72,37 @@ const Index = () => {
 
   const handleProductsUpload = useCallback(async (data: any[], fileName: string) => {
     try {
+      // Detect new columns in CSV and create custom columns
+      const knownColumns = new Set(['id', 'ID', 'title', 'Title', 'name', 'Name', 'brand', 'Brand', 'url', 'URL', 'category', 'subcategory', 'bigC', 'smallC', 'segment', 'subSegment']);
+      const existingCustomColumnNames = new Set(customColumns.map(col => col.name.toLowerCase()));
+      
+      if (data.length > 0) {
+        const csvColumns = Object.keys(data[0]);
+        const newColumns = csvColumns.filter(col => 
+          !knownColumns.has(col) && 
+          !existingCustomColumnNames.has(col.toLowerCase())
+        );
+        
+        // Create new custom columns for unknown CSV columns
+        newColumns.forEach(columnName => {
+          // Determine data type by checking first few non-empty values
+          let dataType: 'text' | 'number' = 'text';
+          for (let i = 0; i < Math.min(10, data.length); i++) {
+            const value = data[i][columnName];
+            if (value && !isNaN(Number(value)) && value.toString().trim() !== '') {
+              dataType = 'number';
+              break;
+            }
+          }
+          
+          addColumn({
+            name: columnName,
+            dataType,
+            width: 150
+          });
+        });
+      }
+
       // Always use chunked processing to prevent UI freezing
       const processedProducts: Product[] = [];
       const chunkSize = Math.min(500, data.length); // Smaller chunks for better performance
@@ -95,11 +126,19 @@ const Index = () => {
             subSegment: row.subSegment
           };
 
-          // Map custom columns from CSV data
-          customColumns.forEach(column => {
-            const csvValue = row[column.name] || row[column.name.toLowerCase()] || row[column.name.toUpperCase()];
-            if (csvValue !== undefined && csvValue !== '') {
-              setValue(productId, column.id, String(csvValue));
+          // Map ALL custom columns from CSV data (including newly created ones)
+          const allCustomColumns = [...customColumns];
+          // Add the newly created columns that might not be in state yet
+          const csvColumns = Object.keys(row);
+          csvColumns.forEach(csvCol => {
+            if (!knownColumns.has(csvCol)) {
+              const existingCol = allCustomColumns.find(col => col.name.toLowerCase() === csvCol.toLowerCase());
+              if (existingCol) {
+                const csvValue = row[csvCol];
+                if (csvValue !== undefined && csvValue !== '') {
+                  setValue(productId, existingCol.id, String(csvValue));
+                }
+              }
             }
           });
 
@@ -135,7 +174,7 @@ const Index = () => {
         variant: "destructive",
       });
     }
-  }, [toast, customColumns, setValue]);
+  }, [toast, customColumns, addColumn, setValue]);
 
   const handleHierarchyUpload = (data: any[], fileName: string) => {
     try {
