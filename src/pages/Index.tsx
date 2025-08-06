@@ -656,6 +656,7 @@ const Index = () => {
             onRowsChange={handleRowsChange}
             onDeleteRow={handleDeleteRow}
             onSelectRows={handleSelectRows}
+            hierarchyHelper={hierarchyHelper}
           />
         ) : (
           <Card className="p-12 text-center">

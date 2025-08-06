@@ -26,6 +26,7 @@ export interface ProductHierarchyMappingTableProps {
   onDeleteRow: (rowId: string) => void;
   onSelectRows: (rowIds: string[]) => void;
   validateProductField?: (rowId: string, columnId: string, value: string) => string | null;
+  hierarchyHelper?: any; // Add hierarchy helper prop
 }
 
 export interface BatchEditToolbarProps {

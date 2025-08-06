@@ -6,11 +6,12 @@ import { Progress } from './ui/progress';
 import { Badge } from './ui/badge';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { RotateCcw, Check, ChevronsUpDown, Eye, EyeOff, Download, Search, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { RowData, ProductHierarchyMappingTableProps } from '../types/productTable';
 import BatchEditForm from './BatchEditForm';
-import { Product } from '../types/mapping';
+import { Product, ClassificationLevel, FilterState } from '../types/mapping';
 import { OptimizedHierarchyHelper } from '../utils/optimizedHierarchyHelper';
 
 const AutocompleteCell: React.FC<{
@@ -81,7 +82,7 @@ const AutocompleteCell: React.FC<{
   );
 };
 
-const EditableCell: React.FC<{
+const TooltipCell: React.FC<{
   value: string;
   onChange: (value: string) => void;
   onBlur?: () => void;
@@ -133,14 +134,165 @@ const EditableCell: React.FC<{
     );
   }
 
+  const truncatedValue = value && value.length > 30 ? `${value.substring(0, 30)}...` : value;
+
   return (
-    <div 
-      className="h-8 px-2 flex items-center text-xs cursor-pointer hover:bg-muted/50 rounded"
-      onDoubleClick={handleDoubleClick}
-      title="Double-click to edit"
-    >
-      {value || 'Click to edit'}
-    </div>
+    <TooltipProvider delayDuration={300}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div 
+            className="h-8 px-2 flex items-center text-xs cursor-pointer hover:bg-muted/50 rounded truncate max-w-full"
+            onDoubleClick={handleDoubleClick}
+          >
+            {truncatedValue || 'Click to edit'}
+          </div>
+        </TooltipTrigger>
+        {value && value.length > 30 && (
+          <TooltipContent side="top" className="max-w-md break-words">
+            <p>{value}</p>
+          </TooltipContent>
+        )}
+      </Tooltip>
+    </TooltipProvider>
+  );
+};
+
+const HierarchyAutocompleteCell: React.FC<{
+  row: RowData;
+  column: { key: string; label: string };
+  hierarchyHelper: OptimizedHierarchyHelper;
+  onRowUpdate: (row: RowData) => void;
+  hierarchyOptions: { [level: string]: Array<{ value: string; label: string }> };
+}> = ({ row, column, hierarchyHelper, onRowUpdate, hierarchyOptions }) => {
+  const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Map column keys to hierarchy levels
+  const columnToLevel: Record<string, ClassificationLevel> = {
+    level1: 'category',
+    level2: 'subcategory', 
+    level3: 'bigC',
+    level4: 'smallC',
+    level5: 'segment',
+    level6: 'subSegment'
+  };
+
+  const level = columnToLevel[column.key];
+  
+  // Create current selections from row data
+  const currentSelections: FilterState = {
+    category: row.hierarchy?.level1,
+    subcategory: row.hierarchy?.level2,
+    bigC: row.hierarchy?.level3,
+    smallC: row.hierarchy?.level4,
+    segment: row.hierarchy?.level5,
+    subSegment: row.hierarchy?.level6
+  };
+
+  // Get filtered options based on current selections using hierarchy helper
+  const availableOptions = useMemo(() => {
+    try {
+      return hierarchyHelper.getAvailableOptions(level, currentSelections);
+    } catch (error) {
+      console.warn('Error getting available options:', error);
+      return hierarchyOptions[column.key] || [];
+    }
+  }, [hierarchyHelper, level, currentSelections, hierarchyOptions, column.key]);
+
+  const filteredOptions = useMemo(() => {
+    if (!searchQuery) return availableOptions;
+    return availableOptions.filter(option =>
+      option.label.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [availableOptions, searchQuery]);
+
+  const selectedOption = availableOptions.find(opt => opt.value === (row.hierarchy?.[column.key] || ''));
+
+  const handleSelectionChange = useCallback((value: string) => {
+    const newSelections = { ...currentSelections, [level]: value };
+    
+    // Auto-complete other fields using hierarchy helper
+    const autoCompletedSelections = hierarchyHelper.autoCompleteSelections(newSelections);
+    
+    console.log('Auto-completing from', newSelections, 'to', autoCompletedSelections);
+    
+    // Update the row with auto-completed data
+    const updatedRow = {
+      ...row,
+      hierarchy: {
+        ...row.hierarchy,
+        level1: autoCompletedSelections.category,
+        level2: autoCompletedSelections.subcategory,
+        level3: autoCompletedSelections.bigC,
+        level4: autoCompletedSelections.smallC,
+        level5: autoCompletedSelections.segment,
+        level6: autoCompletedSelections.subSegment
+      }
+    };
+    
+    onRowUpdate(updatedRow);
+    setOpen(false);
+    setSearchQuery('');
+  }, [row, level, currentSelections, hierarchyHelper, onRowUpdate]);
+
+  return (
+    <TooltipProvider delayDuration={300}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="w-full">
+            <Popover open={open} onOpenChange={setOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={open}
+                  className="w-full justify-between h-8 text-xs border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                >
+                  <span className="truncate max-w-[100px]">
+                    {selectedOption?.label || `Select ${column.label}`}
+                  </span>
+                  <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[200px] p-0 bg-popover border border-border z-50" side="bottom" align="start">
+                <Command>
+                  <CommandInput 
+                    placeholder={`Search ${column.label.toLowerCase()}...`}
+                    value={searchQuery}
+                    onValueChange={setSearchQuery}
+                  />
+                  <CommandList>
+                    <CommandEmpty>No options found.</CommandEmpty>
+                    <CommandGroup>
+                      {filteredOptions.map((option) => (
+                        <CommandItem
+                          key={option.value}
+                          value={option.value}
+                          onSelect={() => handleSelectionChange(option.value)}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-3 w-3",
+                              (row.hierarchy?.[column.key] || '') === option.value ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {option.label}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+        </TooltipTrigger>
+        {selectedOption?.label && selectedOption.label.length > 15 && (
+          <TooltipContent side="top" className="max-w-md break-words">
+            <p>{selectedOption.label}</p>
+          </TooltipContent>
+        )}
+      </Tooltip>
+    </TooltipProvider>
   );
 };
 
@@ -150,48 +302,57 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
   onRowsChange,
   onDeleteRow,
   onSelectRows,
-  validateProductField
+  validateProductField,
+  hierarchyHelper: externalHierarchyHelper
 }) => {
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [showIncomplete, setShowIncomplete] = useState(false);
   const [isBatchEditOpen, setIsBatchEditOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Create hierarchy helper with realistic sample data for auto-completion
+  // Use external hierarchy helper if provided, otherwise create from options
   const hierarchyHelper = useMemo(() => {
-    // Create sample rules that represent realistic product hierarchy relationships
-    const sampleRules = [
-      // Electronics > Mobile Phones
-      { category: 'Electronics', subcategory: 'Mobile Phones', bigC: 'Smartphones', smallC: 'Android', segment: 'Premium', subSegment: 'Flagship' },
-      { category: 'Electronics', subcategory: 'Mobile Phones', bigC: 'Smartphones', smallC: 'iOS', segment: 'Premium', subSegment: 'Pro Series' },
-      { category: 'Electronics', subcategory: 'Mobile Phones', bigC: 'Accessories', smallC: 'Cases', segment: 'Protection', subSegment: 'Heavy Duty' },
-      { category: 'Electronics', subcategory: 'Mobile Phones', bigC: 'Accessories', smallC: 'Chargers', segment: 'Wireless', subSegment: 'Fast Charge' },
-      
-      // Electronics > Computers
-      { category: 'Electronics', subcategory: 'Computers', bigC: 'Laptops', smallC: 'Gaming', segment: 'High Performance', subSegment: 'RTX Series' },
-      { category: 'Electronics', subcategory: 'Computers', bigC: 'Laptops', smallC: 'Business', segment: 'Professional', subSegment: 'Ultrabook' },
-      { category: 'Electronics', subcategory: 'Computers', bigC: 'Desktops', smallC: 'Workstation', segment: 'Professional', subSegment: 'CAD/Design' },
-      
-      // Fashion > Men's Clothing
-      { category: 'Fashion', subcategory: "Men's Clothing", bigC: 'Shirts', smallC: 'Casual', segment: 'Everyday', subSegment: 'Cotton Blend' },
-      { category: 'Fashion', subcategory: "Men's Clothing", bigC: 'Shirts', smallC: 'Formal', segment: 'Business', subSegment: 'Dress Shirts' },
-      { category: 'Fashion', subcategory: "Men's Clothing", bigC: 'Pants', smallC: 'Jeans', segment: 'Casual', subSegment: 'Slim Fit' },
-      { category: 'Fashion', subcategory: "Men's Clothing", bigC: 'Pants', smallC: 'Trousers', segment: 'Formal', subSegment: 'Tailored' },
-      
-      // Fashion > Women's Clothing
-      { category: 'Fashion', subcategory: "Women's Clothing", bigC: 'Dresses', smallC: 'Casual', segment: 'Everyday', subSegment: 'Summer' },
-      { category: 'Fashion', subcategory: "Women's Clothing", bigC: 'Dresses', smallC: 'Formal', segment: 'Evening', subSegment: 'Cocktail' },
-      { category: 'Fashion', subcategory: "Women's Clothing", bigC: 'Tops', smallC: 'Blouses', segment: 'Professional', subSegment: 'Office Wear' },
-      
-      // Home & Garden
-      { category: 'Home & Garden', subcategory: 'Furniture', bigC: 'Living Room', smallC: 'Sofas', segment: 'Comfort', subSegment: 'Sectional' },
-      { category: 'Home & Garden', subcategory: 'Furniture', bigC: 'Bedroom', smallC: 'Beds', segment: 'Sleep', subSegment: 'Platform' },
-      { category: 'Home & Garden', subcategory: 'Decor', bigC: 'Wall Art', smallC: 'Paintings', segment: 'Traditional', subSegment: 'Canvas' },
-      { category: 'Home & Garden', subcategory: 'Kitchen', bigC: 'Appliances', smallC: 'Small Appliances', segment: 'Cooking', subSegment: 'Blenders' }
-    ];
+    if (externalHierarchyHelper) {
+      console.log('Using external hierarchy helper with uploaded data');
+      return externalHierarchyHelper;
+    }
     
-    return new OptimizedHierarchyHelper(sampleRules);
-  }, []);
+    // Fallback: Extract hierarchy rules from the hierarchyOptions prop
+    const rules = [];
+    
+    // Get all possible combinations from the options
+    const categories = hierarchyOptions.level1 || [];
+    const subcategories = hierarchyOptions.level2 || [];
+    const bigCs = hierarchyOptions.level3 || [];
+    const smallCs = hierarchyOptions.level4 || [];
+    const segments = hierarchyOptions.level5 || [];
+    const subSegments = hierarchyOptions.level6 || [];
+    
+    // Create rules for all valid combinations
+    for (const cat of categories) {
+      for (const subcat of subcategories) {
+        for (const bigC of bigCs) {
+          for (const smallC of smallCs) {
+            for (const segment of segments) {
+              for (const subSegment of subSegments) {
+                rules.push({
+                  category: cat.value,
+                  subcategory: subcat.value,
+                  bigC: bigC.value,
+                  smallC: smallC.value,
+                  segment: segment.value,
+                  subSegment: subSegment.value
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    console.log('Creating fallback hierarchy helper with', rules.length, 'rules from options');
+    return new OptimizedHierarchyHelper(rules);
+  }, [externalHierarchyHelper, hierarchyOptions]);
 
   const columns = [
     { key: 'checkbox', label: '', width: 50 },
@@ -597,7 +758,7 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
                     )}
 
                     {(column.key === 'name' || column.key === 'sku' || column.key === 'brand' || column.key === 'url') && (
-                      <EditableCell
+                      <TooltipCell
                         value={row[column.key as keyof RowData] as string || ''}
                         onChange={(value) => updateField(row.id, column.key, value)}
                       />
@@ -605,11 +766,12 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
 
                     {(column.key === 'level1' || column.key === 'level2' || column.key === 'level3' || 
                       column.key === 'level4' || column.key === 'level5' || column.key === 'level6') && (
-                      <AutocompleteCell
-                        value={row.hierarchy?.[column.key] || ''}
-                        options={hierarchyOptions[column.key] || []}
-                        onChange={(value) => updateField(row.id, `hierarchy.${column.key}`, value)}
-                        placeholder={`Select ${column.label}`}
+                      <HierarchyAutocompleteCell
+                        row={row}
+                        column={column}
+                        hierarchyHelper={hierarchyHelper}
+                        onRowUpdate={handleRowUpdate}
+                        hierarchyOptions={hierarchyOptions}
                       />
                     )}
 
