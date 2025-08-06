@@ -862,9 +862,9 @@ const EnhancedProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTabl
         <div className="flex">
           {/* Frozen Columns */}
           {frozenColumns.length > 0 && (
-            <div className="flex-none overflow-hidden border-r-2 border-primary/20 bg-background">
+            <div className="frozen-table-section flex-none overflow-hidden border-r-2 border-primary/20 bg-background">
               <div className="overflow-y-auto max-h-[600px]">
-                <table className="w-auto">
+                <table className="enhanced-product-table w-auto">
                   <thead className="bg-muted/30 sticky top-0 z-20">
                     <tr>
                       {frozenColumns.map((column, index) => (
@@ -896,13 +896,15 @@ const EnhancedProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTabl
                         {frozenColumns.map((column) => (
                           <td
                             key={`${row.id}-${column.key}`}
-                            className="p-2 border-r border-border bg-background"
+                            className="p-2 border-r border-border bg-background table-cell-dropdown"
                             style={{ 
                               width: getColumnWidth(column.key),
                               minWidth: getColumnWidth(column.key),
                             }}
                           >
-                            {renderCell(row, column)}
+                            <div className="table-cell-content">
+                              {renderCell(row, column)}
+                            </div>
                           </td>
                         ))}
                       </tr>
@@ -914,8 +916,8 @@ const EnhancedProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTabl
           )}
 
           {/* Scrollable Columns */}
-          <div className="flex-1 overflow-auto">
-            <table className="w-full">
+          <div className="scrollable-table-section flex-1 overflow-auto">
+            <table className="enhanced-product-table w-full">
               <thead className="bg-muted/30 sticky top-0 z-10">
                 <tr>
                   {scrollableColumns.map((column, index) => (
@@ -939,13 +941,15 @@ const EnhancedProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTabl
                     {scrollableColumns.map((column) => (
                       <td
                         key={`${row.id}-${column.key}`}
-                        className="p-2 border-r border-border"
+                        className="p-2 border-r border-border table-cell-dropdown"
                         style={{ 
                           width: getColumnWidth(column.key),
                           minWidth: getColumnWidth(column.key),
                         }}
                       >
-                        {renderCell(row, column)}
+                        <div className="table-cell-content">
+                          {renderCell(row, column)}
+                        </div>
                       </td>
                     ))}
                   </tr>

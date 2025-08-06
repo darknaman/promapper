@@ -68,14 +68,14 @@ const SortableHeader: React.FC<SortableHeaderProps> = ({
   }, [column.key, column.width, onColumnResize]);
 
   return (
-    <div 
+    <th 
       className={cn(
-        "relative group bg-muted/30 border-b border-border h-12 flex items-center px-3",
+        "relative group bg-muted/30 border-b border-border h-12 px-3",
         isFrozen && "sticky left-0 z-10 bg-background border-r-2 border-primary/20"
       )}
-      style={{ width: column.width }}
+      style={{ width: column.width, minWidth: column.width }}
     >
-      <div className="flex items-center gap-2 flex-1 min-w-0">
+      <div className="flex items-center gap-2 flex-1 min-w-0 h-full">
         {column.hasCheckbox && children}
         
         <span className="font-medium text-sm text-foreground truncate">
@@ -109,14 +109,14 @@ const SortableHeader: React.FC<SortableHeaderProps> = ({
 
       {/* Sort Controls */}
       {isSortable && (
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute top-2 right-8 opacity-0 group-hover:opacity-100 transition-opacity">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
                 <MoreHorizontal className="h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="z-50">
               <DropdownMenuItem onClick={() => handleSort('asc')}>
                 <ArrowUp className="h-3 w-3 mr-2" />
                 Sort Ascending
@@ -145,7 +145,7 @@ const SortableHeader: React.FC<SortableHeaderProps> = ({
         onMouseDown={handleMouseDown}
         title="Resize column"
       />
-    </div>
+    </th>
   );
 };
 
