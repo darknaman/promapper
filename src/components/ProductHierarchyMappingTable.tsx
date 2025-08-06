@@ -147,8 +147,9 @@ const TooltipCell: React.FC<{
       <Tooltip>
         <TooltipTrigger asChild>
           <div 
-            className="h-8 px-2 flex items-center text-xs cursor-pointer hover:bg-muted/50 rounded truncate max-w-full"
+            className="h-8 px-2 flex items-center text-xs cursor-pointer hover:bg-muted/50 rounded break-words overflow-hidden"
             onDoubleClick={handleDoubleClick}
+            style={{ wordWrap: 'break-word', overflowWrap: 'break-word' }}
           >
             {truncatedValue || 'Click to edit'}
           </div>
@@ -822,10 +823,10 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
         </div>
       </div>
 
-      <div className="border rounded-lg overflow-hidden bg-card max-h-[600px] relative">
+      <div className="border rounded-lg overflow-hidden bg-card h-[600px] relative flex flex-col">
         {/* Frozen columns container */}
         {frozenColumnCount > 0 && (
-          <div className="absolute left-0 top-0 bottom-0 bg-background border-r z-30 overflow-hidden">
+          <div className="absolute left-0 top-0 bottom-0 bg-background border-r z-30 overflow-y-auto">
             <table className="h-full">
               <thead className="bg-muted/30 sticky top-0 z-40">
                 <tr>
@@ -872,6 +873,9 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
                         style={{ 
                           width: column.width,
                           minWidth: column.width,
+                          maxWidth: column.width,
+                          wordWrap: 'break-word',
+                          overflowWrap: 'break-word',
                         }}
                       >
                         {/* Cell content rendering */}
@@ -934,7 +938,7 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
 
         {/* Scrollable table container */}
         <div 
-          className="overflow-auto"
+          className="overflow-auto flex-1"
           style={{ 
             marginLeft: frozenColumnCount > 0 ? frozenColumns.reduce((acc, col) => acc + col.width, 0) : 0 
           }}
@@ -985,6 +989,9 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
                       style={{ 
                         width: column.width,
                         minWidth: column.width,
+                        maxWidth: column.width,
+                        wordWrap: 'break-word',
+                        overflowWrap: 'break-word',
                         position: column.key === 'clear' ? 'sticky' : 'relative',
                         right: column.key === 'clear' ? 0 : 'auto',
                         backgroundColor: column.key === 'clear' ? 'hsl(var(--background))' : 'inherit',
