@@ -90,7 +90,9 @@ const TooltipCell: React.FC<{
   value: string;
   onChange: (value: string) => void;
   onBlur?: () => void;
-}> = ({ value, onChange, onBlur }) => {
+  dataType?: 'text' | 'number' | 'date' | 'dropdown';
+  validationRules?: any;
+}> = ({ value, onChange, onBlur, dataType = 'text', validationRules }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -104,6 +106,15 @@ const TooltipCell: React.FC<{
   };
 
   const handleSave = () => {
+    // Basic validation
+    if (validationRules?.required && !editValue.trim()) {
+      return; // Don't save empty required fields
+    }
+
+    if (dataType === 'number' && editValue && isNaN(Number(editValue))) {
+      return; // Don't save invalid numbers
+    }
+
     onChange(editValue);
     setIsEditing(false);
     onBlur?.();
@@ -129,6 +140,7 @@ const TooltipCell: React.FC<{
     return (
       <Input
         ref={inputRef}
+        type={dataType === 'number' ? 'number' : dataType === 'date' ? 'date' : 'text'}
         value={editValue}
         onChange={(e) => setEditValue(e.target.value)}
         onBlur={handleSave}
@@ -300,7 +312,7 @@ const HierarchyAutocompleteCell: React.FC<{
   );
 };
 
-const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> = ({
+const EnhancedProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> = ({
   rows,
   hierarchyOptions,
   onRowsChange,
@@ -313,6 +325,24 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
   const [showIncomplete, setShowIncomplete] = useState(false);
   const [isBatchEditOpen, setIsBatchEditOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showColumnPanel, setShowColumnPanel] = useState(false);
+
+  // Column management hook
+  const {
+    tableState,
+    addCustomColumn,
+    removeCustomColumn,
+    updateColumnWidth,
+    setFreezePosition,
+    addSort,
+    removeSort,
+    clearAllSorts,
+    toggleColumnVisibility,
+    getAllColumns,
+    getColumnWidth,
+    getFrozenColumns,
+    getScrollableColumns,
+  } = useColumnManagement();
 
   // Use external hierarchy helper if provided, otherwise create from options
   const hierarchyHelper = useMemo(() => {
@@ -358,21 +388,9 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
     return new OptimizedHierarchyHelper(rules);
   }, [externalHierarchyHelper, hierarchyOptions]);
 
-  const columns = [
-    { key: 'checkbox', label: '', width: 50 },
-    { key: 'name', label: 'Product Name', width: 200 },
-    { key: 'sku', label: 'SKU/ID', width: 120 },
-    { key: 'brand', label: 'Brand', width: 120 },
-    { key: 'url', label: 'URL', width: 150 },
-    { key: 'level1', label: 'Category', width: 140 },
-    { key: 'level2', label: 'Subcategory', width: 140 },
-    { key: 'level3', label: 'Big C', width: 120 },
-    { key: 'level4', label: 'Small C', width: 120 },
-    { key: 'level5', label: 'Segment', width: 120 },
-    { key: 'level6', label: 'Sub-segment', width: 130 },
-    { key: 'clear', label: '', width: 60 },
-  ];
-
+  // All columns including custom ones
+  const allColumns = getAllColumns();
+  
   // Filter rows based on show incomplete
   const filteredRows = useMemo(() => {
     if (!showIncomplete) return rows;
@@ -393,7 +411,10 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
     );
   }, [filteredRows, searchQuery]);
 
-  const isAllSelected = selectedRows.size === searchFilteredRows.length && searchFilteredRows.length > 0;
+  // Apply sorting
+  const sortedRows = useSorting(searchFilteredRows, tableState.sortConfigs, tableState.columnConfig.customColumns);
+
+  const isAllSelected = selectedRows.size === sortedRows.length && sortedRows.length > 0;
 
   // Calculate completion statistics
   const completionStats = useMemo(() => {
@@ -411,11 +432,10 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
     };
   }, [rows]);
 
-
   // Convert rows to products for batch edit (only from filtered/searched rows)
   const selectedProducts = useMemo((): Product[] => {
     return Array.from(selectedRows).map(rowId => {
-      const row = searchFilteredRows.find(r => r.id === rowId);
+      const row = sortedRows.find(r => r.id === rowId);
       if (!row) return null;
       
       return {
@@ -431,18 +451,18 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
         subSegment: row.hierarchy?.level6
       };
     }).filter(Boolean) as Product[];
-  }, [selectedRows, searchFilteredRows]);
+  }, [selectedRows, sortedRows]);
 
   const handleSelectAll = useCallback((checked: boolean) => {
     if (checked) {
-      const allFilteredIds = new Set(searchFilteredRows.map(row => row.id));
+      const allFilteredIds = new Set(sortedRows.map(row => row.id));
       setSelectedRows(allFilteredIds);
       onSelectRows(Array.from(allFilteredIds));
     } else {
       setSelectedRows(new Set());
       onSelectRows([]);
     }
-  }, [searchFilteredRows, onSelectRows]);
+  }, [sortedRows, onSelectRows]);
 
   const handleRowSelect = useCallback((rowId: string, selected: boolean) => {
     const newSelection = new Set(selectedRows);
@@ -463,7 +483,7 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
   const handleBatchUpdate = useCallback(async (updates: any) => {
     const updatedRows = rows.map(row => {
       // Only update rows that are both selected AND in the current search results
-      if (selectedRows.has(row.id) && searchFilteredRows.some(filteredRow => filteredRow.id === row.id)) {
+      if (selectedRows.has(row.id) && sortedRows.some(filteredRow => filteredRow.id === row.id)) {
         const newHierarchy = {
           ...row.hierarchy,
           level1: updates.category || row.hierarchy?.level1,
@@ -505,7 +525,7 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
     onRowsChange(updatedRows);
     setSelectedRows(new Set());
     onSelectRows([]);
-  }, [rows, selectedRows, searchFilteredRows, hierarchyHelper, onRowsChange, onSelectRows]);
+  }, [rows, selectedRows, sortedRows, hierarchyHelper, onRowsChange, onSelectRows]);
 
   const clearRowMapping = useCallback((rowId: string) => {
     const updatedRows = rows.map(row => {
@@ -522,7 +542,11 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
     if (!row) return;
 
     const updatedRow = { ...row };
-    if (field.startsWith('hierarchy.')) {
+    
+    // Handle custom columns
+    if (tableState.columnConfig.customColumns.some(col => col.id === field)) {
+      (updatedRow as any)[field] = value;
+    } else if (field.startsWith('hierarchy.')) {
       const hierarchyField = field.split('.')[1];
       updatedRow.hierarchy = { ...updatedRow.hierarchy, [hierarchyField]: value };
       
@@ -589,8 +613,7 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
       updatedRow[field as keyof RowData] = value;
     }
     handleRowUpdate(updatedRow);
-  }, [rows, handleRowUpdate, hierarchyHelper]);
-
+  }, [rows, handleRowUpdate, hierarchyHelper, tableState.columnConfig.customColumns]);
 
   // CSV Export functionality
   const exportToCSV = useCallback(() => {
@@ -599,21 +622,32 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
       'Category', 'Subcategory', 'Big C', 'Small C', 'Segment', 'Sub-segment'
     ];
     
-    const csvData = rows.map(row => [
-      row.id,
-      row.name || '',
-      row.sku || '',
-      row.brand || '',
-      row.url || '',
-      row.hierarchy?.level1 || '',
-      row.hierarchy?.level2 || '',
-      row.hierarchy?.level3 || '',
-      row.hierarchy?.level4 || '',
-      row.hierarchy?.level5 || '',
-      row.hierarchy?.level6 || ''
-    ]);
+    // Add custom column headers
+    const customHeaders = tableState.columnConfig.customColumns.map(col => col.name);
+    const allHeaders = [...headers, ...customHeaders];
+    
+    const csvData = rows.map(row => {
+      const baseData = [
+        row.id,
+        row.name || '',
+        row.sku || '',
+        row.brand || '',
+        row.url || '',
+        row.hierarchy?.level1 || '',
+        row.hierarchy?.level2 || '',
+        row.hierarchy?.level3 || '',
+        row.hierarchy?.level4 || '',
+        row.hierarchy?.level5 || '',
+        row.hierarchy?.level6 || ''
+      ];
+      
+      // Add custom column data
+      const customData = tableState.columnConfig.customColumns.map(col => (row as any)[col.id] || col.defaultValue || '');
+      
+      return [...baseData, ...customData];
+    });
 
-    const csvContent = [headers, ...csvData]
+    const csvContent = [allHeaders, ...csvData]
       .map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
       .join('\n');
 
@@ -626,10 +660,111 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  }, [rows]);
+  }, [rows, tableState.columnConfig.customColumns]);
+
+  // Get column configuration for rendering
+  const frozenColumns = getFrozenColumns();
+  const scrollableColumns = getScrollableColumns();
+
+  const renderCell = (row: RowData, column: any) => {
+    const columnKey = column.key;
+    
+    if (columnKey === 'checkbox') {
+      return (
+        <Checkbox
+          checked={selectedRows.has(row.id)}
+          onCheckedChange={(checked) => handleRowSelect(row.id, !!checked)}
+          aria-label={`Select row ${row.id}`}
+        />
+      );
+    }
+
+    if (columnKey === 'clear') {
+      return (
+        <div className="flex justify-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => clearRowMapping(row.id)}
+            className="h-8 w-8 p-0 hover:bg-destructive/10"
+            aria-label={`Clear mapping for row ${row.id}`}
+          >
+            <RotateCcw className="h-4 w-4 text-muted-foreground" />
+          </Button>
+        </div>
+      );
+    }
+
+    // Core product fields
+    if (['name', 'sku', 'brand', 'url'].includes(columnKey)) {
+      return (
+        <TooltipCell
+          value={row[columnKey as keyof RowData] as string || ''}
+          onChange={(value) => updateField(row.id, columnKey, value)}
+        />
+      );
+    }
+
+    // Hierarchy fields
+    if (['level1', 'level2', 'level3', 'level4', 'level5', 'level6'].includes(columnKey)) {
+      return (
+        <HierarchyAutocompleteCell
+          row={row}
+          column={column}
+          hierarchyHelper={hierarchyHelper}
+          onRowUpdate={handleRowUpdate}
+          hierarchyOptions={hierarchyOptions}
+        />
+      );
+    }
+
+    // Custom columns
+    const customColumn = tableState.columnConfig.customColumns.find(col => col.id === columnKey);
+    if (customColumn) {
+      if (customColumn.dataType === 'dropdown') {
+        return (
+          <AutocompleteCell
+            value={(row as any)[columnKey] || ''}
+            options={customColumn.validationRules?.options?.map((opt: string) => ({ value: opt, label: opt })) || []}
+            onChange={(value) => updateField(row.id, columnKey, value)}
+            placeholder={`Select ${customColumn.name}`}
+          />
+        );
+      } else {
+        return (
+          <TooltipCell
+            value={(row as any)[columnKey] || customColumn.defaultValue || ''}
+            onChange={(value) => updateField(row.id, columnKey, value)}
+            dataType={customColumn.dataType}
+            validationRules={customColumn.validationRules}
+          />
+        );
+      }
+    }
+
+    return null;
+  };
 
   return (
     <div className="mapping-table-container">
+      {/* Column Management Panel */}
+      <ColumnManagementPanel
+        isOpen={showColumnPanel}
+        onToggle={() => setShowColumnPanel(!showColumnPanel)}
+        customColumns={tableState.columnConfig.customColumns}
+        sortConfigs={tableState.sortConfigs}
+        freezePosition={tableState.columnConfig.freezePosition}
+        hiddenColumns={tableState.columnConfig.hiddenColumns}
+        onAddColumn={addCustomColumn}
+        onRemoveColumn={removeCustomColumn}
+        onSetFreezePosition={setFreezePosition}
+        onToggleColumnVisibility={toggleColumnVisibility}
+        onAddSort={addSort}
+        onRemoveSort={removeSort}
+        onClearAllSorts={clearAllSorts}
+        allColumns={allColumns}
+      />
+
       {/* Progress Bar and Controls */}
       <div className="mb-4 space-y-4">
         <div className="flex items-center justify-between">
@@ -646,6 +781,16 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
           </div>
           
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowColumnPanel(!showColumnPanel)}
+              className="flex items-center gap-2"
+            >
+              <Settings className="h-4 w-4" />
+              Columns
+            </Button>
+
             <Button
               variant="outline"
               size="sm"
@@ -701,103 +846,114 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
           </div>
           {searchQuery && (
             <Badge variant="secondary">
-              {searchFilteredRows.length} of {filteredRows.length} rows
+              {sortedRows.length} of {filteredRows.length} rows
+            </Badge>
+          )}
+          {tableState.sortConfigs.length > 0 && (
+            <Badge variant="outline">
+              Sorted by {tableState.sortConfigs.length} column{tableState.sortConfigs.length > 1 ? 's' : ''}
             </Badge>
           )}
         </div>
       </div>
 
-      <div className="border rounded-lg overflow-auto bg-card max-h-[600px]">
-        <table className="w-full">
-          <thead className="bg-muted/30 sticky top-0 z-10">
-            <tr>
-              {columns.map((column) => (
-                <th
-                  key={column.key}
-                  className="text-left p-2 text-sm font-medium border-r border-border"
-                  style={{ 
-                    width: column.width,
-                    minWidth: column.width,
-                    position: column.key === 'clear' ? 'sticky' : 'relative',
-                    right: column.key === 'clear' ? 0 : 'auto',
-                    backgroundColor: column.key === 'clear' ? 'hsl(var(--muted))' : 'inherit',
-                    zIndex: column.key === 'clear' ? 11 : 10,
-                  }}
-                >
-                  {column.key === 'checkbox' ? (
-                    <Checkbox
-                      checked={isAllSelected}
-                      onCheckedChange={handleSelectAll}
-                      aria-label="Select all rows"
-                    />
-                  ) : (
-                    column.label
-                  )}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {searchFilteredRows.map((row) => (
-              <tr key={row.id} className="border-b border-border hover:bg-muted/50">
-                {columns.map((column) => (
-                  <td
-                    key={`${row.id}-${column.key}`}
-                    className="p-2 border-r border-border"
-                    style={{ 
-                      width: column.width,
-                      minWidth: column.width,
-                      position: column.key === 'clear' ? 'sticky' : 'relative',
-                      right: column.key === 'clear' ? 0 : 'auto',
-                      backgroundColor: column.key === 'clear' ? 'hsl(var(--background))' : 'inherit',
-                      zIndex: column.key === 'clear' ? 3 : 1,
-                    }}
-                  >
-                    {column.key === 'checkbox' && (
-                      <Checkbox
-                        checked={selectedRows.has(row.id)}
-                        onCheckedChange={(checked) => handleRowSelect(row.id, !!checked)}
-                        aria-label={`Select row ${row.id}`}
-                      />
-                    )}
-
-                    {(column.key === 'name' || column.key === 'sku' || column.key === 'brand' || column.key === 'url') && (
-                      <TooltipCell
-                        value={row[column.key as keyof RowData] as string || ''}
-                        onChange={(value) => updateField(row.id, column.key, value)}
-                      />
-                    )}
-
-                    {(column.key === 'level1' || column.key === 'level2' || column.key === 'level3' || 
-                      column.key === 'level4' || column.key === 'level5' || column.key === 'level6') && (
-                      <HierarchyAutocompleteCell
-                        row={row}
-                        column={column}
-                        hierarchyHelper={hierarchyHelper}
-                        onRowUpdate={handleRowUpdate}
-                        hierarchyOptions={hierarchyOptions}
-                      />
-                    )}
-
-                    {column.key === 'clear' && (
-                      <div className="flex justify-center">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => clearRowMapping(row.id)}
-                          className="h-8 w-8 p-0 hover:bg-destructive/10"
-                          aria-label={`Clear mapping for row ${row.id}`}
+      {/* Enhanced Table with Flexible Freeze Panes */}
+      <div className="border rounded-lg overflow-hidden bg-card max-h-[600px] relative">
+        <div className="flex">
+          {/* Frozen Columns */}
+          {frozenColumns.length > 0 && (
+            <div className="flex-none overflow-hidden border-r-2 border-primary/20 bg-background">
+              <div className="overflow-y-auto max-h-[600px]">
+                <table className="w-auto">
+                  <thead className="bg-muted/30 sticky top-0 z-20">
+                    <tr>
+                      {frozenColumns.map((column, index) => (
+                        <SortableHeader
+                          key={column.key}
+                          column={{ ...column, width: getColumnWidth(column.key) }}
+                          sortConfigs={tableState.sortConfigs}
+                          freezePosition={tableState.columnConfig.freezePosition}
+                          columnIndex={index}
+                          onSort={addSort}
+                          onRemoveSort={removeSort}
+                          onFreezeHere={setFreezePosition}
+                          onColumnResize={updateColumnWidth}
                         >
-                          <RotateCcw className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                      </div>
-                    )}
-                  </td>
+                          {('hasCheckbox' in column && column.hasCheckbox) && (
+                            <Checkbox
+                              checked={isAllSelected}
+                              onCheckedChange={handleSelectAll}
+                              aria-label="Select all rows"
+                            />
+                          )}
+                        </SortableHeader>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedRows.map((row) => (
+                      <tr key={row.id} className="border-b border-border hover:bg-muted/50">
+                        {frozenColumns.map((column) => (
+                          <td
+                            key={`${row.id}-${column.key}`}
+                            className="p-2 border-r border-border bg-background"
+                            style={{ 
+                              width: getColumnWidth(column.key),
+                              minWidth: getColumnWidth(column.key),
+                            }}
+                          >
+                            {renderCell(row, column)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Scrollable Columns */}
+          <div className="flex-1 overflow-auto">
+            <table className="w-full">
+              <thead className="bg-muted/30 sticky top-0 z-10">
+                <tr>
+                  {scrollableColumns.map((column, index) => (
+                    <SortableHeader
+                      key={column.key}
+                      column={{ ...column, width: getColumnWidth(column.key) }}
+                      sortConfigs={tableState.sortConfigs}
+                      freezePosition={tableState.columnConfig.freezePosition}
+                      columnIndex={frozenColumns.length + index}
+                      onSort={addSort}
+                      onRemoveSort={removeSort}
+                      onFreezeHere={setFreezePosition}
+                      onColumnResize={updateColumnWidth}
+                    />
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sortedRows.map((row) => (
+                  <tr key={row.id} className="border-b border-border hover:bg-muted/50">
+                    {scrollableColumns.map((column) => (
+                      <td
+                        key={`${row.id}-${column.key}`}
+                        className="p-2 border-r border-border"
+                        style={{ 
+                          width: getColumnWidth(column.key),
+                          minWidth: getColumnWidth(column.key),
+                        }}
+                      >
+                        {renderCell(row, column)}
+                      </td>
+                    ))}
+                  </tr>
                 ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       {/* Batch Edit Dialog */}
@@ -812,4 +968,4 @@ const ProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTableProps> 
   );
 };
 
-export default ProductHierarchyMappingTable;
+export default EnhancedProductHierarchyMappingTable;
