@@ -72,47 +72,67 @@ const Index = () => {
 
   const handleProductsUpload = useCallback(async (data: any[], fileName: string) => {
     try {
-      // Detect new columns in CSV and create custom columns
-      const knownColumns = new Set(['id', 'ID', 'title', 'Title', 'name', 'Name', 'brand', 'Brand', 'url', 'URL', 'category', 'subcategory', 'bigC', 'smallC', 'segment', 'subSegment']);
-      const existingCustomColumnNames = new Set(customColumns.map(col => col.name.toLowerCase()));
+      // Define core columns more precisely
+      const coreColumns = new Set([
+        'id', 'ID', 'title', 'Title', 'name', 'Name', 
+        'brand', 'Brand', 'url', 'URL', 'sku', 'SKU',
+        'category', 'subcategory', 'bigC', 'smallC', 'segment', 'subSegment'
+      ]);
+      
+      // Detect new custom columns and create them efficiently
+      const newColumnsToCreate: Array<{ name: string; dataType: 'text' | 'number' }> = [];
+      const customColumnValues: Array<{ rowId: string; columnName: string; value: string }> = [];
       
       if (data.length > 0) {
-        const csvColumns = Object.keys(data[0]);
-        const newColumns = csvColumns.filter(col => 
-          !knownColumns.has(col) && 
-          !existingCustomColumnNames.has(col.toLowerCase())
+        const csvColumns = Object.keys(data[0]).filter(col => 
+          col.trim() !== '' && !coreColumns.has(col)
         );
         
-        // Create new custom columns for unknown CSV columns
-        newColumns.forEach(columnName => {
-          // Determine data type by checking first few non-empty values
+        const existingCustomColumnNames = new Set(customColumns.map(col => col.name));
+        
+        // Identify truly new columns
+        const newColumnNames = csvColumns.filter(col => !existingCustomColumnNames.has(col));
+        
+        // Determine data types for new columns
+        newColumnNames.forEach(columnName => {
           let dataType: 'text' | 'number' = 'text';
-          for (let i = 0; i < Math.min(10, data.length); i++) {
+          // Check first 5 non-empty values to determine type
+          for (let i = 0; i < Math.min(5, data.length); i++) {
             const value = data[i][columnName];
-            if (value && !isNaN(Number(value)) && value.toString().trim() !== '') {
-              dataType = 'number';
-              break;
+            if (value && String(value).trim() !== '') {
+              const numValue = Number(value);
+              if (!isNaN(numValue) && isFinite(numValue)) {
+                dataType = 'number';
+                break;
+              }
             }
           }
-          
-          addColumn({
-            name: columnName,
-            dataType,
-            width: 150
-          });
+          newColumnsToCreate.push({ name: columnName, dataType });
         });
       }
 
-      // Always use chunked processing to prevent UI freezing
+      // Create new columns first (batch operation)
+      const newColumnIds: Record<string, string> = {};
+      newColumnsToCreate.forEach(({ name, dataType }) => {
+        const columnId = `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        newColumnIds[name] = columnId;
+        addColumn({ name, dataType, width: 150 });
+      });
+
+      // Process products and collect custom column values
       const processedProducts: Product[] = [];
-      const chunkSize = Math.min(500, data.length); // Smaller chunks for better performance
+      const allCustomColumnNames = [...customColumns.map(col => col.name), ...newColumnsToCreate.map(col => col.name)];
+      
+      // Use larger chunks since we're not doing complex operations per item
+      const chunkSize = Math.min(1000, data.length);
       
       for (let i = 0; i < data.length; i += chunkSize) {
         const chunk = data.slice(i, i + chunkSize);
         
-        // Process chunk synchronously but yield control
         const processedChunk = chunk.map((row, index) => {
           const productId = row.id || row.ID || `product-${i + index}`;
+          
+          // Extract core product data
           const product = {
             id: productId,
             title: row.title || row.Title || row.name || row.Name || '',
@@ -126,19 +146,15 @@ const Index = () => {
             subSegment: row.subSegment
           };
 
-          // Map ALL custom columns from CSV data (including newly created ones)
-          const allCustomColumns = [...customColumns];
-          // Add the newly created columns that might not be in state yet
-          const csvColumns = Object.keys(row);
-          csvColumns.forEach(csvCol => {
-            if (!knownColumns.has(csvCol)) {
-              const existingCol = allCustomColumns.find(col => col.name.toLowerCase() === csvCol.toLowerCase());
-              if (existingCol) {
-                const csvValue = row[csvCol];
-                if (csvValue !== undefined && csvValue !== '') {
-                  setValue(productId, existingCol.id, String(csvValue));
-                }
-              }
+          // Collect custom column values for batch processing
+          allCustomColumnNames.forEach(columnName => {
+            const csvValue = row[columnName];
+            if (csvValue !== undefined && csvValue !== '' && String(csvValue).trim() !== '') {
+              customColumnValues.push({
+                rowId: productId,
+                columnName,
+                value: String(csvValue).trim()
+              });
             }
           });
 
@@ -147,21 +163,34 @@ const Index = () => {
         
         processedProducts.push(...processedChunk);
         
-        // Yield control to keep UI responsive
-        if (i + chunkSize < data.length) {
+        // Yield control every few chunks to keep UI responsive
+        if (i + chunkSize < data.length && (i / chunkSize) % 3 === 0) {
           await new Promise<void>(resolve => {
-            if (typeof requestIdleCallback !== 'undefined') {
-              requestIdleCallback(() => resolve(), { timeout: 50 });
-            } else {
-              setTimeout(() => resolve(), 10);
-            }
+            setTimeout(() => resolve(), 5);
           });
         }
       }
       
-      // Update state in one go to minimize re-renders
+      // Set products first
       setProducts(processedProducts);
       setProductsFileName(fileName);
+      
+      // Batch set custom column values after a small delay to ensure columns exist
+      setTimeout(() => {
+        const allColumns = [...customColumns, ...newColumnsToCreate.map(col => ({
+          id: newColumnIds[col.name],
+          name: col.name,
+          dataType: col.dataType,
+          width: 150
+        }))];
+        
+        customColumnValues.forEach(({ rowId, columnName, value }) => {
+          const column = allColumns.find(col => col.name === columnName);
+          if (column) {
+            setValue(rowId, column.id, value);
+          }
+        });
+      }, 100);
       
       toast({
         title: "Products loaded successfully",
