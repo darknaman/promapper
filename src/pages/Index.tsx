@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { Product, HierarchyRule } from '../types/mapping';
 import { OptimizedHierarchyHelper } from '../utils/optimizedHierarchyHelper';
 import FileUpload from '../components/FileUpload';
-import ProductHierarchyMappingTable from '../components/ProductHierarchyMappingTable';
+import OptimizedProductHierarchyMappingTable from '../components/optimized/OptimizedProductHierarchyMappingTable';
 import { RowData } from '../types/productTable';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -827,7 +827,7 @@ const Index = () => {
 
         {/* Mapping Interface */}
         {products.length > 0 && hierarchyRules.length > 0 ? (
-          <ProductHierarchyMappingTable
+          <OptimizedProductHierarchyMappingTable
             rows={tableRows}
             hierarchyOptions={hierarchyOptions}
             onRowsChange={handleRowsChange}

@@ -1,6 +1,6 @@
 /**
- * CSV Worker Manager - Handles Web Worker communication for CSV processing
- * Provides a clean interface for offloading heavy CSV operations to Web Workers
+ * Optimized CSV Worker Manager - Enhanced performance with better memory management
+ * Provides high-performance CSV processing with progress tracking and error handling
  */
 
 import { Product, HierarchyRule } from '../types/mapping';
@@ -24,21 +24,45 @@ export interface CsvWorkerResult {
 export class CsvWorkerManager {
   private worker: Worker | null = null;
   private isProcessing = false;
+  private workerPool: Worker[] = [];
+  private poolSize = Math.max(2, Math.min(navigator.hardwareConcurrency || 4, 8));
+  private currentWorkerIndex = 0;
+  private abortController: AbortController | null = null;
 
   constructor() {
-    this.initializeWorker();
+    this.initializeWorkerPool();
   }
 
   /**
-   * Initialize the Web Worker
+   * Initialize the Web Worker pool for better performance
    */
-  private initializeWorker(): void {
+  private initializeWorkerPool(): void {
     try {
-      this.worker = new Worker('/csvWorker.js');
+      for (let i = 0; i < this.poolSize; i++) {
+        const worker = new Worker('/csvWorker.js');
+        worker.onerror = (error) => {
+          console.error(`Worker ${i} error:`, error);
+        };
+        this.workerPool.push(worker);
+      }
+      // Set primary worker for backward compatibility
+      this.worker = this.workerPool[0] || null;
     } catch (error) {
       console.warn('Web Worker not supported, falling back to main thread processing');
       this.worker = null;
+      this.workerPool = [];
     }
+  }
+
+  /**
+   * Get the next available worker from the pool
+   */
+  private getNextWorker(): Worker | null {
+    if (this.workerPool.length === 0) return null;
+    
+    const worker = this.workerPool[this.currentWorkerIndex];
+    this.currentWorkerIndex = (this.currentWorkerIndex + 1) % this.workerPool.length;
+    return worker;
   }
 
   /**
