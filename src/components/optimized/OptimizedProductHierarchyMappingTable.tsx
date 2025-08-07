@@ -440,6 +440,7 @@ const OptimizedProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTab
                         sortKey={column.key}
                         currentSort={sortConfig}
                         onSort={handleSort}
+                        width={column.width}
                       />
                     )}
                   </ResizableColumnHeader>
@@ -469,6 +470,7 @@ const OptimizedProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTab
                       sortKey={column.key}
                       currentSort={sortConfig}
                       onSort={handleSort}
+                      width={column.width}
                     />
                   )}
                 </ResizableColumnHeader>
@@ -518,7 +520,7 @@ const OptimizedProductHierarchyMappingTable: React.FC<ProductHierarchyMappingTab
       />
 
       <AddColumnModal
-        open={isAddColumnModalOpen}
+        isOpen={isAddColumnModalOpen}
         onClose={() => setIsAddColumnModalOpen(false)}
         onAddColumn={addColumn}
       />

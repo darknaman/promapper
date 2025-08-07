@@ -9,10 +9,12 @@ import { CustomColumn } from '../types/customColumns';
 
 interface AddColumnModalProps {
   onAddColumn: (column: Omit<CustomColumn, 'id'>) => void;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
-const AddColumnModal: React.FC<AddColumnModalProps> = ({ onAddColumn }) => {
-  const [open, setOpen] = useState(false);
+const AddColumnModal: React.FC<AddColumnModalProps> = ({ onAddColumn, isOpen, onClose }) => {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [columnName, setColumnName] = useState('');
   const [dataType, setDataType] = useState<'text' | 'number'>('text');
   const [defaultValue, setDefaultValue] = useState('');
@@ -31,7 +33,12 @@ const AddColumnModal: React.FC<AddColumnModalProps> = ({ onAddColumn }) => {
     setColumnName('');
     setDataType('text');
     setDefaultValue('');
-    setOpen(false);
+    
+    if (onClose) {
+      onClose();
+    } else {
+      setInternalOpen(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -40,14 +47,19 @@ const AddColumnModal: React.FC<AddColumnModalProps> = ({ onAddColumn }) => {
     }
   };
 
+  const modalOpen = isOpen !== undefined ? isOpen : internalOpen;
+  const handleOpenChange = onClose || setInternalOpen;
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
-          <Plus className="h-4 w-4" />
-          Add Column
-        </Button>
-      </DialogTrigger>
+    <Dialog open={modalOpen} onOpenChange={handleOpenChange}>
+      {!isOpen && (
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm" className="gap-2">
+            <Plus className="h-4 w-4" />
+            Add Column
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add Custom Column</DialogTitle>
@@ -90,7 +102,7 @@ const AddColumnModal: React.FC<AddColumnModalProps> = ({ onAddColumn }) => {
           </div>
 
           <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setOpen(false)}>
+            <Button variant="outline" onClick={() => onClose ? onClose() : setInternalOpen(false)}>
               Cancel
             </Button>
             <Button onClick={handleAdd} disabled={!columnName.trim()}>
