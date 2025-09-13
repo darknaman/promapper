@@ -12,7 +12,6 @@ import { Shuffle, Database, Download, RotateCcw, FileDown, Save, RefreshCw } fro
 import { saveMappingData, loadMappingData, clearMappingData, hasSavedData, getLastSavedTime, AutoSaveManager } from '../utils/mappingPersistence';
 import { useCustomColumns } from '../hooks/useCustomColumns';
 import { CSVColumnPreviewDialog } from '../components/CSVColumnPreviewDialog';
-import logo from '../assets/logo.svg';
 
 const Index = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -633,7 +632,6 @@ const Index = () => {
         <div className="mb-8">
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-center">
-              <img src={logo} alt="1Digital Stack Logo" className="h-10 w-auto mr-4" />
             </div>
             <div className="flex-1 text-center">
               <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
